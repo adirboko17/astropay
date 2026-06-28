@@ -5,7 +5,9 @@ import "./globals.css";
 
 const heebo = Heebo({
   subsets: ["hebrew", "latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
   variable: "--font-heebo",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -26,7 +28,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body
-        className="min-h-screen bg-[var(--background)] font-sans text-slate-900 antialiased"
+        className={`${heebo.className} min-h-screen bg-[var(--background)] font-sans text-slate-900 antialiased`}
         suppressHydrationWarning
       >
         {children}

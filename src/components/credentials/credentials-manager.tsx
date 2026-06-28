@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -8,7 +9,6 @@ import {
   deleteCredential,
   updateCredential,
 } from "@/app/credentials/actions";
-import { CredentialTableTabs } from "@/components/credentials/credential-table-tabs";
 import { ClientCardModal } from "@/components/credentials/client-card-modal";
 import {
   ClientSelectorField,
@@ -26,7 +26,7 @@ import {
   sortClients,
 } from "@/lib/credentials/clients";
 import { getPlatformBadgeClass } from "@/lib/credentials/platform-ui";
-import { findTableFromParam, getTableName } from "@/lib/credentials/tables";
+import { getTableName } from "@/lib/credentials/tables";
 import type {
   ClientCredential,
   CredentialClient,
@@ -34,6 +34,7 @@ import type {
 } from "@/types/database";
 
 interface CredentialsManagerProps {
+  table: CredentialTable;
   initialCredentials: ClientCredential[];
   initialTables: CredentialTable[];
   initialClients: CredentialClient[];
@@ -47,16 +48,16 @@ const columns = [
   { key: "password", label: "סיסמה" },
   { key: "website_url", label: "אתר" },
   { key: "notes", label: "הערות" },
-  { key: "actions", label: "" },
+  { key: "actions", label: "פעולות" },
 ] as const;
 
 export function CredentialsManager({
+  table,
   initialCredentials,
   initialTables,
   initialClients = [],
 }: CredentialsManagerProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [credentials, setCredentials] =
     useState<ClientCredential[]>(initialCredentials);
   const [tables, setTables] = useState<CredentialTable[]>(initialTables);
@@ -91,36 +92,18 @@ export function CredentialsManager({
     [cardClientId, clients],
   );
 
-  const activeTable = useMemo(
-    () => findTableFromParam(searchParams.get("table"), tables),
-    [searchParams, tables],
-  );
-
-  useEffect(() => {
-    setSearchQuery("");
-  }, [activeTable?.id]);
-
-  const showTableColumn = activeTable === null;
+  const activeTable = table;
 
   const visibleColumns = useMemo(
-    () =>
-      showTableColumn
-        ? columns
-        : columns.filter((column) => column.key !== "table"),
-    [showTableColumn],
+    () => columns.filter((column) => column.key !== "table"),
+    [],
   );
 
   const tableCredentials = useMemo(() => {
-    const sorted = [...credentials].sort((a, b) =>
-      a.client_name.localeCompare(b.client_name, "he"),
-    );
-
-    if (!activeTable) return sorted;
-
-    return sorted.filter(
-      (credential) => credential.table_id === activeTable.id,
-    );
-  }, [activeTable, credentials]);
+    return [...credentials]
+      .filter((credential) => credential.table_id === activeTable.id)
+      .sort((a, b) => a.client_name.localeCompare(b.client_name, "he"));
+  }, [activeTable.id, credentials]);
 
   const filteredCredentials = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
@@ -133,17 +116,8 @@ export function CredentialsManager({
     );
   }, [searchQuery, tableCredentials]);
 
-  function handleSelectTable(tableId: string | null) {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (tableId) {
-      params.set("table", tableId);
-    } else {
-      params.delete("table");
-    }
-
-    const query = params.toString();
-    router.push(query ? `/credentials?${query}` : "/credentials");
+  function handleSelectTable(tableId: string) {
+    router.push(`/credentials/${tableId}`);
   }
 
   function handleDraftChange(field: keyof CredentialFormData, value: string) {
@@ -225,7 +199,7 @@ export function CredentialsManager({
   }
 
   async function handleCreate() {
-    if (!activeTable || isCreating) return;
+    if (isCreating) return;
 
     const clientName = getClientNameForSave(
       clients,
@@ -368,62 +342,31 @@ export function CredentialsManager({
         </div>
       )}
 
-      <CredentialTableTabs
-        tables={tables}
-        activeTableId={activeTable?.id ?? null}
-        credentials={credentials}
-        onSelect={handleSelectTable}
-        onTableCreated={(table) =>
-          setTables((current) =>
-            current.some((item) => item.id === table.id)
-              ? current
-              : [...current, table],
-          )
-        }
-        onTableDeleted={(tableId) =>
-          setTables((current) => current.filter((table) => table.id !== tableId))
-        }
-      />
-
-      {activeTable ? null : (
-        <section className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-5 py-8 text-center shadow-sm">
-          <p className="text-sm font-medium text-slate-700">
-            בחר טבלה מהרשימה למעלה, או צור טבלה חדשה
-          </p>
-          <p className="mt-1 text-sm text-slate-400">
-            רק אחרי שתבחר טבלה תוכל להוסיף אליה רשומות
-          </p>
-        </section>
-      )}
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+      <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">
-              {activeTable ? `טבלת ${activeTable.name}` : "כל הרשומות"}
+            <Link
+              href="/credentials"
+              className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-900"
+            >
+              ← חזור לכל הטבלאות
+            </Link>
+            <h2 className="mt-2 text-base font-semibold text-slate-900">
+              {activeTable.name}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              {activeTable
-                ? `מוצגות רק רשומות של ${activeTable.name}`
-                : "תצוגה מאוחדת מכל הטבלאות שיצרת"}
+              {searchQuery.trim()
+                ? `${filteredCredentials.length} מתוך ${tableCredentials.length} רשומות`
+                : `${tableCredentials.length} רשומות`}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {activeTable ? (
-              <button
-                type="button"
-                onClick={openAddModal}
-                className="h-10 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
-              >
-                + הוסף לטבלה
-              </button>
-            ) : null}
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-              {searchQuery.trim()
-                ? `${filteredCredentials.length} מתוך ${tableCredentials.length}`
-                : `${filteredCredentials.length} רשומות`}
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="h-10 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+          >
+            + הוסף לטבלה
+          </button>
         </div>
 
         <div className="border-b border-slate-100 px-5 py-3">
@@ -473,18 +416,12 @@ export function CredentialsManager({
                       <p className="text-sm font-medium text-slate-600">
                         {searchQuery.trim()
                           ? "לא נמצאו תוצאות לחיפוש"
-                          : activeTable
-                            ? `אין רשומות ב-${activeTable.name} עדיין`
-                            : tables.length === 0
-                              ? "צור טבלה ראשונה כדי להתחיל"
-                              : "אין רשומות עדיין"}
+                          : `אין רשומות ב-${activeTable.name} עדיין`}
                       </p>
                       <p className="mt-1 text-sm text-slate-400">
                         {searchQuery.trim()
                           ? "נסה שם או אימייל אחר"
-                          : activeTable
-                            ? "לחץ על + הוסף לטבלה כדי להוסיף רשומה ראשונה"
-                            : "בחר טבלה ספציפית כדי להוסיף נתונים"}
+                          : "לחץ על + הוסף לטבלה כדי להוסיף רשומה ראשונה"}
                       </p>
                     </div>
                   </td>
@@ -500,7 +437,7 @@ export function CredentialsManager({
                       row.client_id,
                     )}
                     striped={index % 2 === 1}
-                    showTableColumn={showTableColumn}
+                    showTableColumn={false}
                     disabled={isBusy}
                     isDeleting={deletingId === row.id}
                     onOpenClientCard={
@@ -518,7 +455,7 @@ export function CredentialsManager({
         </div>
       </section>
 
-      {addModalOpen && activeTable ? (
+      {addModalOpen ? (
         <AddCredentialModal
           tableName={activeTable.name}
           clients={sortedClients}
@@ -976,36 +913,108 @@ function CredentialRow({
       </td>
       <DisplayCell muted>{row.notes || "—"}</DisplayCell>
       <td className="border-b border-slate-100 px-4 py-3">
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {onOpenClientCard ? (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={onOpenClientCard}
-              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
-            >
-              כרטיס
-            </button>
-          ) : null}
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onEdit}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50"
-          >
-            ערוך
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onDelete}
-            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 shadow-sm transition hover:bg-red-50 disabled:opacity-50"
-          >
-            {isDeleting ? "מוחק..." : "מחק"}
-          </button>
-        </div>
+        <RowActionsMenu
+          disabled={disabled}
+          isDeleting={isDeleting}
+          onOpenClientCard={onOpenClientCard}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       </td>
     </tr>
+  );
+}
+
+function RowActionsMenu({
+  disabled,
+  isDeleting,
+  onOpenClientCard,
+  onEdit,
+  onDelete,
+}: {
+  disabled: boolean;
+  isDeleting: boolean;
+  onOpenClientCard?: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  function close() {
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative flex justify-center">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        aria-label="פעולות"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+      >
+        <span>פעולות</span>
+        <span className="text-base leading-none text-slate-400" aria-hidden="true">
+          ⋮
+        </span>
+      </button>
+
+      {open ? (
+        <>
+          <button
+            type="button"
+            aria-label="סגור תפריט"
+            className="fixed inset-0 z-10"
+            onClick={close}
+          />
+          <div
+            role="menu"
+            className="absolute end-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+          >
+            {onOpenClientCard ? (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={disabled}
+                onClick={() => {
+                  close();
+                  onOpenClientCard();
+                }}
+                className="flex w-full px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                כרטיס לקוח
+              </button>
+            ) : null}
+            <button
+              type="button"
+              role="menuitem"
+              disabled={disabled}
+              onClick={() => {
+                close();
+                onEdit();
+              }}
+              className="flex w-full px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              ערוך
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={disabled || isDeleting}
+              onClick={() => {
+                close();
+                onDelete();
+              }}
+              className="flex w-full px-4 py-2 text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+            >
+              {isDeleting ? "מוחק..." : "מחק"}
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }
 

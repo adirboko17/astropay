@@ -269,6 +269,7 @@ export interface Database {
           sort_order: number;
           created_at: string;
           updated_at: string;
+          last_viewed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -276,6 +277,7 @@ export interface Database {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          last_viewed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -283,6 +285,7 @@ export interface Database {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          last_viewed_at?: string | null;
         };
         Relationships: [];
       };

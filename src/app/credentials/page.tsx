@@ -1,33 +1,40 @@
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { CredentialsManager } from "@/components/credentials/credentials-manager";
+import { CredentialsTablesHome } from "@/components/credentials/credentials-tables-home";
 import { AppShell } from "@/components/layout/app-shell";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { ClientCredential, CredentialClient, CredentialTable } from "@/types/database";
+import type { ClientCredential, CredentialTable } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-export default async function CredentialsPage() {
-  let credentials: ClientCredential[] = [];
+interface CredentialsPageProps {
+  searchParams: Promise<{ table?: string }>;
+}
+
+export default async function CredentialsPage({ searchParams }: CredentialsPageProps) {
+  const { table: tableId } = await searchParams;
+
+  if (tableId) {
+    redirect(`/credentials/${tableId}`);
+  }
+
+  let credentials: Pick<ClientCredential, "table_id">[] = [];
   let tables: CredentialTable[] = [];
-  let clients: CredentialClient[] = [];
   let loadError: string | null = null;
 
   try {
     const supabase = createAdminClient();
 
-    const [tablesResult, credentialsResult, clientsResult] = await Promise.all([
-      supabase.from("credential_tables").select("*").order("name", {
-        ascending: true,
+    const [tablesResult, credentialsResult] = await Promise.all([
+      supabase.from("credential_tables").select("*").order("last_viewed_at", {
+        ascending: false,
+        nullsFirst: false,
       }),
       supabase
         .from("client_credentials")
-        .select("*")
+        .select("id, table_id")
         .order("client_name", { ascending: true }),
-      supabase
-        .from("credential_clients")
-        .select("*")
-        .order("name", { ascending: true }),
     ]);
 
     if (tablesResult.error) {
@@ -41,35 +48,17 @@ export default async function CredentialsPage() {
     } else {
       credentials = credentialsResult.data ?? [];
     }
-
-    if (clientsResult.error) {
-      loadError = clientsResult.error.message;
-    } else {
-      clients = clientsResult.data ?? [];
-    }
   } catch (error) {
     loadError =
       error instanceof Error ? error.message : "שגיאה בטעינת פרטי ההתחברות";
   }
 
   return (
-    <AppShell
-      wide
-      title="פרטי התחברות"
-      description="צור טבלאות משלך ונהל בהן את כל פרטי ההתחברות של הלקוחות"
-    >
+    <AppShell wide hideHeader>
       {loadError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">לא ניתן לטעון נתונים</p>
           <p className="mt-1">{loadError}</p>
-          <p className="mt-2 text-xs">
-            הוסף ל-<code className="rounded bg-amber-100 px-1">.env.local</code>{" "}
-            את{" "}
-            <code className="rounded bg-amber-100 px-1">
-              SUPABASE_SERVICE_ROLE_KEY
-            </code>{" "}
-            (מ-Supabase Dashboard → Settings → API)
-          </p>
         </div>
       ) : (
         <Suspense
@@ -79,10 +68,9 @@ export default async function CredentialsPage() {
             </div>
           }
         >
-          <CredentialsManager
-            initialCredentials={credentials}
+          <CredentialsTablesHome
             initialTables={tables}
-            initialClients={clients}
+            initialCredentials={credentials}
           />
         </Suspense>
       )}

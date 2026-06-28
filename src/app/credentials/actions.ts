@@ -142,7 +142,7 @@ export async function createCredentialTable(name: string) {
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials");
+    revalidatePath("/credentials", "layout");
     return { success: true, id: data.id };
   } catch (error) {
     return {
@@ -178,7 +178,7 @@ export async function createCredential(
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials");
+    revalidatePath("/credentials", "layout");
     return { success: true, clientId: client.id };
   } catch (error) {
     return {
@@ -232,7 +232,7 @@ export async function updateCredential(
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials");
+    revalidatePath("/credentials", "layout");
     return { success: true, clientId: client.id };
   } catch (error) {
     return {
@@ -251,7 +251,7 @@ export async function deleteCredential(id: string) {
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials");
+    revalidatePath("/credentials", "layout");
     return { success: true };
   } catch (error) {
     return {
@@ -281,11 +281,34 @@ export async function deleteCredentialTable(id: string) {
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials");
+    revalidatePath("/credentials", "layout");
     return { success: true };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה במחיקת הטבלה",
+    };
+  }
+}
+
+export async function markCredentialTableViewed(tableId: string) {
+  try {
+    const supabase = createAdminClient();
+
+    const { error } = await supabase
+      .from("credential_tables")
+      .update({ last_viewed_at: new Date().toISOString() })
+      .eq("id", tableId);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    revalidatePath("/credentials", "layout");
+    return { success: true as const };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "שגיאה בעדכון צפייה אחרונה",
     };
   }
 }
