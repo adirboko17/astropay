@@ -1,0 +1,180 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export interface Database {
+  public: {
+    Tables: {
+      recurring_clients: {
+        Row: {
+          id: string;
+          payplus_customer_uid: string | null;
+          payplus_recurring_uid: string | null;
+          customer_name: string;
+          customer_email: string | null;
+          customer_phone: string | null;
+          website_url: string | null;
+          monthly_amount: number;
+          currency: string;
+          billing_day: number | null;
+          next_billing_date: string | null;
+          recurring_status: string | null;
+          current_month_status: string;
+          last_successful_charge_at: string | null;
+          last_failed_charge_at: string | null;
+          last_failure_reason: string | null;
+          source: string;
+          raw_payplus_data: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          payplus_customer_uid?: string | null;
+          payplus_recurring_uid?: string | null;
+          customer_name: string;
+          customer_email?: string | null;
+          customer_phone?: string | null;
+          website_url?: string | null;
+          monthly_amount: number;
+          currency?: string;
+          billing_day?: number | null;
+          next_billing_date?: string | null;
+          recurring_status?: string | null;
+          current_month_status?: string;
+          last_successful_charge_at?: string | null;
+          last_failed_charge_at?: string | null;
+          last_failure_reason?: string | null;
+          source?: string;
+          raw_payplus_data?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          payplus_customer_uid?: string | null;
+          payplus_recurring_uid?: string | null;
+          customer_name?: string;
+          customer_email?: string | null;
+          customer_phone?: string | null;
+          website_url?: string | null;
+          monthly_amount?: number;
+          currency?: string;
+          billing_day?: number | null;
+          next_billing_date?: string | null;
+          recurring_status?: string | null;
+          current_month_status?: string;
+          last_successful_charge_at?: string | null;
+          last_failed_charge_at?: string | null;
+          last_failure_reason?: string | null;
+          source?: string;
+          raw_payplus_data?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      recurring_charge_checks: {
+        Row: {
+          id: string;
+          recurring_client_id: string;
+          payplus_transaction_uid: string | null;
+          payplus_recurring_uid: string | null;
+          check_month: string;
+          amount: number;
+          currency: string;
+          status: string;
+          failure_reason: string | null;
+          charged_at: string | null;
+          raw_payplus_data: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          recurring_client_id: string;
+          payplus_transaction_uid?: string | null;
+          payplus_recurring_uid?: string | null;
+          check_month: string;
+          amount: number;
+          currency?: string;
+          status: string;
+          failure_reason?: string | null;
+          charged_at?: string | null;
+          raw_payplus_data?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          recurring_client_id?: string;
+          payplus_transaction_uid?: string | null;
+          payplus_recurring_uid?: string | null;
+          check_month?: string;
+          amount?: number;
+          currency?: string;
+          status?: string;
+          failure_reason?: string | null;
+          charged_at?: string | null;
+          raw_payplus_data?: Json;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "recurring_charge_checks_recurring_client_id_fkey";
+            columns: ["recurring_client_id"];
+            isOneToOne: false;
+            referencedRelation: "recurring_clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      billing_alerts: {
+        Row: {
+          id: string;
+          recurring_client_id: string;
+          alert_type: string;
+          title: string;
+          message: string;
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          recurring_client_id: string;
+          alert_type: string;
+          title: string;
+          message: string;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          recurring_client_id?: string;
+          alert_type?: string;
+          title?: string;
+          message?: string;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "billing_alerts_recurring_client_id_fkey";
+            columns: ["recurring_client_id"];
+            isOneToOne: false;
+            referencedRelation: "recurring_clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+}
+
+export type RecurringClient = Database["public"]["Tables"]["recurring_clients"]["Row"];
