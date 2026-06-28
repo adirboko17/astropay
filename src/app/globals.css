@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
+  --background: #f4f6fb;
   --foreground: #0f172a;
+  --sidebar: #0b1220;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --accent: #3b82f6;
+  --accent-soft: #dbeafe;
 }
 
 @theme inline {
@@ -15,4 +21,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+::selection {
+  background: #bfdbfe;
+  color: #0f172a;
 }

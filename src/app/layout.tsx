@@ -9,8 +9,8 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  title: "AsrtoPay — ניהול הוראות קבע",
-  description: "מערכת פנימית לניהול הוראות קבע חודשיות מ-PayPlus",
+  title: "AsrtoPay — ניהול עסק",
+  description: "מערכת פנימית לניהול הוראות קבע, לקוחות ופרטי התחברות",
 };
 
 export default function RootLayout({
@@ -19,8 +19,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} h-full`}>
-      <body className="min-h-full bg-slate-50 font-sans text-slate-900 antialiased">
+    <html
+      lang="he"
+      dir="rtl"
+      className={`${heebo.variable} h-full`}
+      suppressHydrationWarning
+    >
+      <body
+        className="min-h-screen bg-[var(--background)] font-sans text-slate-900 antialiased"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>

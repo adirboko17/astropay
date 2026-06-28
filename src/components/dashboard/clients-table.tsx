@@ -16,8 +16,8 @@ interface ClientsTableProps {
 
 export function ClientsTable({ clients }: ClientsTableProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-6 py-4">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur">
+      <div className="border-b border-slate-100 px-6 py-5">
         <h2 className="text-lg font-semibold text-slate-900">לקוחות</h2>
         <p className="mt-1 text-sm text-slate-500">
           רשימת לקוחות עם הוראות קבע — הנתונים יופיעו לאחר סנכרון PayPlus
@@ -25,52 +25,57 @@ export function ClientsTable({ clients }: ClientsTableProps) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50">
+        <table className="min-w-full border-separate border-spacing-0 text-sm">
+          <thead>
             <tr>
               {columns.map((column) => (
                 <th
                   key={column}
                   scope="col"
-                  className="whitespace-nowrap px-4 py-3 text-start font-medium text-slate-600"
+                  className="border-b border-slate-200 bg-slate-50/90 px-4 py-3 text-start text-xs font-semibold tracking-wide text-slate-500"
                 >
                   {column}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {clients.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-4 py-12 text-center text-slate-400"
+                  className="px-4 py-16 text-center text-slate-400"
                 >
                   אין לקוחות להצגה עדיין
                 </td>
               </tr>
             ) : (
-              clients.map((client) => (
-                <tr key={client.id} className="hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
+              clients.map((client, index) => (
+                <tr
+                  key={client.id}
+                  className={`transition hover:bg-blue-50/40 ${
+                    index % 2 === 1 ? "bg-slate-50/40" : "bg-white"
+                  }`}
+                >
+                  <td className="border-b border-slate-100 px-4 py-3 font-medium text-slate-900">
                     {client.customer_name}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="border-b border-slate-100 px-4 py-3 text-slate-600">
                     {client.customer_email ?? "—"}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="border-b border-slate-100 px-4 py-3 text-slate-600">
                     {formatCurrency(client.monthly_amount, client.currency)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="border-b border-slate-100 px-4 py-3 text-slate-600">
                     {client.billing_day ?? "—"}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="border-b border-slate-100 px-4 py-3 text-slate-600">
                     {client.current_month_status}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="border-b border-slate-100 px-4 py-3 text-slate-600">
                     {client.recurring_status ?? "—"}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="border-b border-slate-100 px-4 py-3 text-slate-600">
                     {client.next_billing_date ?? "—"}
                   </td>
                 </tr>
