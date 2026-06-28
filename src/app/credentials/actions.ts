@@ -37,6 +37,30 @@ async function resolveClient(
       return { error: "הלקוח שנבחר לא נמצא" } as const;
     }
 
+    const trimmedName = clientName.trim() || data.name;
+
+    if (trimmedName !== data.name) {
+      const { error: updateClientError } = await supabase
+        .from("credential_clients")
+        .update({ name: trimmedName })
+        .eq("id", clientId);
+
+      if (updateClientError) {
+        return { error: updateClientError.message } as const;
+      }
+
+      const { error: updateCredentialsError } = await supabase
+        .from("client_credentials")
+        .update({ client_name: trimmedName })
+        .eq("client_id", clientId);
+
+      if (updateCredentialsError) {
+        return { error: updateCredentialsError.message } as const;
+      }
+
+      return { id: clientId, name: trimmedName } as const;
+    }
+
     return { id: data.id, name: data.name } as const;
   }
 
@@ -260,19 +284,44 @@ export async function deleteCredential(id: string) {
   }
 }
 
-export async function deleteCredentialTable(id: string) {
+export async function updateCredentialTableName(id: string, name: string) {
+  const trimmedName = name.trim();
+
+  if (!trimmedName) {
+    return { error: "שם הטבלה הוא שדה חובה" };
+  }
+
   try {
     const supabase = createAdminClient();
 
-    const { count, error: countError } = await supabase
+    const { error: tableError } = await supabase
+      .from("credential_tables")
+      .update({ name: trimmedName })
+      .eq("id", id);
+
+    if (tableError) return { error: tableError.message };
+
+    const { error: credentialsError } = await supabase
       .from("client_credentials")
-      .select("id", { count: "exact", head: true })
+      .update({ platform: trimmedName })
       .eq("table_id", id);
 
-    if (countError) return { error: countError.message };
-    if ((count ?? 0) > 0) {
-      return { error: "לא ניתן למחוק טבלה שיש בה רשומות" };
-    }
+    if (credentialsError) return { error: credentialsError.message };
+
+    revalidatePath("/credentials", "layout");
+    revalidatePath(`/credentials/${id}`, "layout");
+    return { success: true as const };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "שגיאה בעדכון שם הטבלה",
+    };
+  }
+}
+
+export async function deleteCredentialTable(id: string) {
+  try {
+    const supabase = createAdminClient();
 
     const { error } = await supabase
       .from("credential_tables")
@@ -286,6 +335,40 @@ export async function deleteCredentialTable(id: string) {
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה במחיקת הטבלה",
+    };
+  }
+}
+
+export async function updateCredentialClientName(clientId: string, name: string) {
+  const trimmedName = name.trim();
+
+  if (!trimmedName) {
+    return { error: "שם הלקוח הוא שדה חובה" };
+  }
+
+  try {
+    const supabase = createAdminClient();
+
+    const { error: clientError } = await supabase
+      .from("credential_clients")
+      .update({ name: trimmedName })
+      .eq("id", clientId);
+
+    if (clientError) return { error: clientError.message };
+
+    const { error: credentialsError } = await supabase
+      .from("client_credentials")
+      .update({ client_name: trimmedName })
+      .eq("client_id", clientId);
+
+    if (credentialsError) return { error: credentialsError.message };
+
+    revalidatePath("/credentials", "layout");
+    return { success: true as const, name: trimmedName };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "שגיאה בעדכון שם הלקוח",
     };
   }
 }

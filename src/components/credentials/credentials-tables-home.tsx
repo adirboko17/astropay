@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { deleteCredentialTable } from "@/app/credentials/actions";
+import {
+  deleteCredentialTable,
+  updateCredentialTableName,
+} from "@/app/credentials/actions";
 import { CreateTableModal } from "@/components/credentials/create-table-modal";
 import {
   buildTableListItems,
@@ -29,9 +32,18 @@ export function CredentialsTablesHome({
   const [credentials] = useState(initialCredentials);
   const [searchQuery, setSearchQuery] = useState("");
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [deletingTableId, setDeletingTableId] = useState<string | null>(null);
+  const [savingTableId, setSavingTableId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingTable, setEditingTable] = useState<TableListItem | null>(null);
+  const [deletingTable, setDeletingTable] = useState<TableListItem | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setTables(initialTables);
+  }, [initialTables]);
 
   const tableItems = useMemo(() => {
     const items = buildTableListItems(tables, credentials);
@@ -48,26 +60,52 @@ export function CredentialsTablesHome({
   );
 
   async function handleDeleteTable(table: TableListItem) {
-    if (!window.confirm(`למחוק את הטבלה "${table.name}"?`)) return;
-
     setDeletingTableId(table.id);
-    setDeleteMessage(null);
-    setOpenMenuId(null);
+    setActionMessage(null);
 
     try {
       const result = await deleteCredentialTable(table.id);
 
       if (result.error) {
-        setDeleteMessage(result.error);
+        setActionMessage(result.error);
         return;
       }
 
       setTables((current) => current.filter((item) => item.id !== table.id));
+      setDeletingTable(null);
+      setOpenMenuId(null);
       router.refresh();
     } catch {
-      setDeleteMessage("שגיאה בלתי צפויה במחיקת הטבלה");
+      setActionMessage("שגיאה בלתי צפויה במחיקת הטבלה");
     } finally {
       setDeletingTableId(null);
+    }
+  }
+
+  async function handleRenameTable(table: TableListItem, name: string) {
+    setSavingTableId(table.id);
+    setActionMessage(null);
+
+    try {
+      const result = await updateCredentialTableName(table.id, name);
+
+      if (result.error) {
+        setActionMessage(result.error);
+        return;
+      }
+
+      setTables((current) =>
+        current.map((item) =>
+          item.id === table.id ? { ...item, name: name.trim() } : item,
+        ),
+      );
+      setEditingTable(null);
+      setOpenMenuId(null);
+      router.refresh();
+    } catch {
+      setActionMessage("שגיאה בלתי צפויה בעדכון שם הטבלה");
+    } finally {
+      setSavingTableId(null);
     }
   }
 
@@ -105,18 +143,18 @@ export function CredentialsTablesHome({
           </div>
         </div>
 
-        {deleteMessage ? (
+        {actionMessage ? (
           <div className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-700">
-            {deleteMessage}
+            {actionMessage}
           </div>
         ) : null}
 
-        <div className="hidden grid-cols-[minmax(0,1fr)_80px_100px_100px_48px] gap-4 border-b border-slate-100 px-5 py-3 text-xs font-medium text-slate-500 sm:grid">
+        <div className="hidden grid-cols-[minmax(0,1fr)_80px_100px_100px_88px] gap-4 border-b border-slate-100 px-5 py-3 text-xs font-medium text-slate-500 sm:grid">
           <span>שם</span>
           <span>רשומות</span>
           <span>צפייה אחרונה</span>
           <span>עדכון אחרון</span>
-          <span />
+          <span>פעולות</span>
         </div>
 
         {tableItems.length === 0 ? (
@@ -136,25 +174,31 @@ export function CredentialsTablesHome({
               title="היום"
               items={groupedTables.today}
               deletingTableId={deletingTableId}
+              savingTableId={savingTableId}
               openMenuId={openMenuId}
               onOpenMenu={setOpenMenuId}
-              onDelete={handleDeleteTable}
+              onEdit={setEditingTable}
+              onDelete={setDeletingTable}
             />
             <TableGroup
               title="7 הימים האחרונים"
               items={groupedTables.lastWeek}
               deletingTableId={deletingTableId}
+              savingTableId={savingTableId}
               openMenuId={openMenuId}
               onOpenMenu={setOpenMenuId}
-              onDelete={handleDeleteTable}
+              onEdit={setEditingTable}
+              onDelete={setDeletingTable}
             />
             <TableGroup
               title="מוקדם יותר"
               items={groupedTables.older}
               deletingTableId={deletingTableId}
+              savingTableId={savingTableId}
               openMenuId={openMenuId}
               onOpenMenu={setOpenMenuId}
-              onDelete={handleDeleteTable}
+              onEdit={setEditingTable}
+              onDelete={setDeletingTable}
             />
           </div>
         )}
@@ -168,6 +212,30 @@ export function CredentialsTablesHome({
           router.refresh();
         }}
       />
+
+      {editingTable ? (
+        <EditTableNameModal
+          table={editingTable}
+          isSaving={savingTableId === editingTable.id}
+          onClose={() => {
+            if (savingTableId) return;
+            setEditingTable(null);
+          }}
+          onSave={(name) => handleRenameTable(editingTable, name)}
+        />
+      ) : null}
+
+      {deletingTable ? (
+        <DeleteTableConfirmModal
+          table={deletingTable}
+          isDeleting={deletingTableId === deletingTable.id}
+          onClose={() => {
+            if (deletingTableId) return;
+            setDeletingTable(null);
+          }}
+          onConfirm={() => handleDeleteTable(deletingTable)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -176,15 +244,19 @@ function TableGroup({
   title,
   items,
   deletingTableId,
+  savingTableId,
   openMenuId,
   onOpenMenu,
+  onEdit,
   onDelete,
 }: {
   title: string;
   items: TableListItem[];
   deletingTableId: string | null;
+  savingTableId: string | null;
   openMenuId: string | null;
   onOpenMenu: (id: string | null) => void;
+  onEdit: (table: TableListItem) => void;
   onDelete: (table: TableListItem) => void;
 }) {
   if (items.length === 0) return null;
@@ -199,8 +271,10 @@ function TableGroup({
           key={table.id}
           table={table}
           isDeleting={deletingTableId === table.id}
+          isSaving={savingTableId === table.id}
           menuOpen={openMenuId === table.id}
           onOpenMenu={onOpenMenu}
+          onEdit={onEdit}
           onDelete={onDelete}
         />
       ))}
@@ -211,20 +285,25 @@ function TableGroup({
 function TableRow({
   table,
   isDeleting,
+  isSaving,
   menuOpen,
   onOpenMenu,
+  onEdit,
   onDelete,
 }: {
   table: TableListItem;
   isDeleting: boolean;
+  isSaving: boolean;
   menuOpen: boolean;
   onOpenMenu: (id: string | null) => void;
+  onEdit: (table: TableListItem) => void;
   onDelete: (table: TableListItem) => void;
 }) {
   const iconColor = getTableIconColor(table.name);
+  const isBusy = isDeleting || isSaving;
 
   return (
-    <div className="group relative grid grid-cols-[minmax(0,1fr)_48px] items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_80px_100px_100px_48px] sm:gap-4 sm:px-5">
+    <div className="group relative grid grid-cols-[minmax(0,1fr)_88px] items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_80px_100px_100px_88px] sm:gap-4 sm:px-5">
       <Link
         href={`/credentials/${table.id}`}
         className="col-span-1 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:col-span-4 sm:grid-cols-[minmax(0,1fr)_80px_100px_100px] sm:gap-4"
@@ -257,13 +336,57 @@ function TableRow({
         </span>
       </Link>
 
+      <TableRowActionsMenu
+        disabled={isBusy}
+        isDeleting={isDeleting}
+        menuOpen={menuOpen}
+        onToggle={() => onOpenMenu(menuOpen ? null : table.id)}
+        onClose={() => onOpenMenu(null)}
+        onEdit={() => {
+          onOpenMenu(null);
+          onEdit(table);
+        }}
+        onDelete={() => {
+          onOpenMenu(null);
+          onDelete(table);
+        }}
+      />
+    </div>
+  );
+}
+
+function TableRowActionsMenu({
+  disabled,
+  isDeleting,
+  menuOpen,
+  onToggle,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  disabled: boolean;
+  isDeleting: boolean;
+  menuOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="relative flex justify-center">
       <button
         type="button"
-        onClick={() => onOpenMenu(menuOpen ? null : table.id)}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 opacity-0 transition hover:bg-slate-200 group-hover:opacity-100"
-        aria-label="אפשרויות"
+        disabled={disabled}
+        onClick={onToggle}
+        aria-label="פעולות"
+        aria-expanded={menuOpen}
+        aria-haspopup="menu"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
       >
-        ⋮
+        <span>פעולות</span>
+        <span className="text-base leading-none text-slate-400" aria-hidden="true">
+          ⋮
+        </span>
       </button>
 
       {menuOpen ? (
@@ -272,13 +395,26 @@ function TableRow({
             type="button"
             aria-label="סגור תפריט"
             className="fixed inset-0 z-10"
-            onClick={() => onOpenMenu(null)}
+            onClick={onClose}
           />
-          <div className="absolute end-8 top-10 z-20 min-w-36 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          <div
+            role="menu"
+            className="absolute end-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+          >
             <button
               type="button"
-              disabled={isDeleting}
-              onClick={() => onDelete(table)}
+              role="menuitem"
+              disabled={disabled}
+              onClick={onEdit}
+              className="flex w-full px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              ערוך שם טבלה
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={disabled || isDeleting}
+              onClick={onDelete}
               className="flex w-full px-4 py-2 text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50"
             >
               {isDeleting ? "מוחק..." : "מחק טבלה"}
@@ -286,6 +422,178 @@ function TableRow({
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function EditTableNameModal({
+  table,
+  isSaving,
+  onClose,
+  onSave,
+}: {
+  table: TableListItem;
+  isSaving: boolean;
+  onClose: () => void;
+  onSave: (name: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState(table.name);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isSaving) onClose();
+    }
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isSaving, onClose]);
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!name.trim() || isSaving) return;
+    onSave(name.trim());
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="סגור"
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px]"
+        onClick={onClose}
+      />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-table-title"
+        className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+      >
+        <h3 id="edit-table-title" className="text-lg font-semibold text-slate-900">
+          עריכת שם טבלה
+        </h3>
+        <p className="mt-1 text-sm text-slate-500">
+          שנה את שם הטבלה — הרשומות יישארו ללא שינוי
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <div>
+            <label
+              htmlFor="edit-table-name"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              שם הטבלה
+            </label>
+            <input
+              ref={inputRef}
+              id="edit-table-name"
+              type="text"
+              value={name}
+              required
+              autoComplete="off"
+              disabled={isSaving}
+              onChange={(event) => setName(event.target.value)}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-4 focus:ring-blue-100 disabled:opacity-50"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button
+              type="submit"
+              disabled={isSaving || !name.trim()}
+              className="h-11 flex-1 rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-70"
+            >
+              {isSaving ? "שומר..." : "שמור שם"}
+            </button>
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={onClose}
+              className="h-11 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              ביטול
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function DeleteTableConfirmModal({
+  table,
+  isDeleting,
+  onClose,
+  onConfirm,
+}: {
+  table: TableListItem;
+  isDeleting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !isDeleting) onClose();
+    }
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isDeleting, onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="סגור"
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px]"
+        onClick={onClose}
+      />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-table-title"
+        className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+      >
+        <h3 id="delete-table-title" className="text-lg font-semibold text-slate-900">
+          מחיקת טבלה
+        </h3>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          האם אתה בטוח שברצונך למחוק את הטבלה{" "}
+          <span className="font-semibold text-slate-900">{table.name}</span> ואת
+          כל המידע בתוכה?
+        </p>
+        {table.recordCount > 0 ? (
+          <p className="mt-2 text-sm text-red-600">
+            פעולה זו תמחק {table.recordCount} רשומות לצמיתות.
+          </p>
+        ) : null}
+
+        <div className="mt-6 flex gap-2">
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={onConfirm}
+            className="h-11 flex-1 rounded-xl bg-red-600 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-wait disabled:opacity-70"
+          >
+            {isDeleting ? "מוחק..." : "כן, מחק טבלה"}
+          </button>
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={onClose}
+            className="h-11 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+          >
+            ביטול
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

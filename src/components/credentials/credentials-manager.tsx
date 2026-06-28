@@ -159,7 +159,7 @@ export function CredentialsManager({
     setEditingCredential(row);
     setEditDraft(credentialToFormData(row));
     setEditClientId(row.client_id);
-    setEditNewClientName(row.client_id ? "" : row.client_name);
+    setEditNewClientName(row.client_name);
     setCardClientId(null);
     setMessage(null);
     setError(null);
@@ -245,6 +245,7 @@ export function CredentialsManager({
       clients,
       editClientId,
       editNewClientName,
+      { preferEditedName: true },
     );
 
     if (!clientName) {
@@ -270,19 +271,34 @@ export function CredentialsManager({
       }
 
       setCredentials((current) =>
-        current.map((row) =>
-          row.id === editingCredential.id
-            ? {
-                ...row,
-                client_id: result.clientId ?? editClientId,
-                client_name: clientName,
-                login_email: editDraft.login_email.trim() || null,
-                login_username: editDraft.login_username.trim() || null,
-                password: editDraft.password || null,
-                website_url: editDraft.website_url.trim() || null,
-                notes: editDraft.notes.trim() || null,
-              }
-            : row,
+        current.map((row) => {
+          const linkedClientId = result.clientId ?? editClientId;
+
+          if (row.id === editingCredential.id) {
+            return {
+              ...row,
+              client_id: linkedClientId,
+              client_name: clientName,
+              login_email: editDraft.login_email.trim() || null,
+              login_username: editDraft.login_username.trim() || null,
+              password: editDraft.password || null,
+              website_url: editDraft.website_url.trim() || null,
+              notes: editDraft.notes.trim() || null,
+            };
+          }
+
+          if (linkedClientId && row.client_id === linkedClientId) {
+            return { ...row, client_name: clientName };
+          }
+
+          return row;
+        }),
+      );
+      setClients((current) =>
+        current.map((client) =>
+          client.id === (result.clientId ?? editClientId)
+            ? { ...client, name: clientName }
+            : client,
         ),
       );
       setMessage(`"${clientName}" עודכן בהצלחה`);
@@ -483,7 +499,17 @@ export function CredentialsManager({
           newClientName={editNewClientName}
           draft={editDraft}
           isSaving={isSavingEdit}
-          onSelectClient={setEditClientId}
+          onSelectClient={(clientId) => {
+            setEditClientId(clientId);
+            if (clientId) {
+              const selected = sortedClients.find(
+                (client) => client.id === clientId,
+              );
+              setEditNewClientName(selected?.name ?? "");
+            } else {
+              setEditNewClientName("");
+            }
+          }}
           onNewClientNameChange={setEditNewClientName}
           onChange={handleEditDraftChange}
           onClose={closeEditModal}
@@ -501,6 +527,19 @@ export function CredentialsManager({
           onGoToTable={(tableId) => {
             setCardClientId(null);
             handleSelectTable(tableId);
+          }}
+          onClientRenamed={(clientId, name) => {
+            setClients((current) =>
+              current.map((client) =>
+                client.id === clientId ? { ...client, name } : client,
+              ),
+            );
+            setCredentials((current) =>
+              current.map((row) =>
+                row.client_id === clientId ? { ...row, client_name: name } : row,
+              ),
+            );
+            router.refresh();
           }}
         />
       ) : null}
@@ -758,6 +797,7 @@ function EditCredentialModal({
               selectedClientId={selectedClientId}
               newClientName={newClientName}
               disabled={isSaving}
+              allowRenameWhenSelected
               onSelectClient={onSelectClient}
               onNewClientNameChange={onNewClientNameChange}
             />

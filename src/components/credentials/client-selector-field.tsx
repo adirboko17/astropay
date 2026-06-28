@@ -10,6 +10,7 @@ interface ClientSelectorFieldProps {
   selectedClientId: string | null;
   newClientName: string;
   disabled?: boolean;
+  allowRenameWhenSelected?: boolean;
   onSelectClient: (clientId: string | null) => void;
   onNewClientNameChange: (name: string) => void;
 }
@@ -20,6 +21,7 @@ export function ClientSelectorField({
   selectedClientId,
   newClientName,
   disabled = false,
+  allowRenameWhenSelected = false,
   onSelectClient,
   onNewClientNameChange,
 }: ClientSelectorFieldProps) {
@@ -65,24 +67,47 @@ export function ClientSelectorField({
       <span className="text-xs font-medium text-slate-500">{label}</span>
 
       {selectedClient ? (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-blue-900">{selectedClient.name}</p>
-              <p className="mt-0.5 text-xs text-blue-700">
-                לקוח קיים — הפרטים יימשכו מרשומות קודמות
-              </p>
-            </div>
+        allowRenameWhenSelected ? (
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={newClientName}
+              disabled={disabled}
+              placeholder="שם הפרויקט / הלקוח"
+              onChange={(event) => onNewClientNameChange(event.target.value)}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-4 focus:ring-blue-100 disabled:opacity-50"
+            />
             <button
               type="button"
               disabled={disabled}
               onClick={clearSelection}
-              className="shrink-0 rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
+              className="text-xs font-medium text-slate-500 transition hover:text-slate-800"
             >
-              שנה
+              החלף לקוח אחר
             </button>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-blue-900">
+                  {selectedClient.name}
+                </p>
+                <p className="mt-0.5 text-xs text-blue-700">
+                  לקוח קיים — הפרטים יימשכו מרשומות קודמות
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={clearSelection}
+                className="shrink-0 rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
+              >
+                שנה
+              </button>
+            </div>
+          </div>
+        )
       ) : isNewClientMode ? (
         <div className="space-y-2">
           <input
@@ -154,10 +179,17 @@ export function getClientNameForSave(
   clients: CredentialClient[] | null | undefined,
   selectedClientId: string | null,
   newClientName: string,
+  options?: { preferEditedName?: boolean },
 ) {
   if (selectedClientId) {
+    const editedName = newClientName.trim();
+    if (options?.preferEditedName && editedName) {
+      return editedName;
+    }
+
     return (
-      (clients ?? []).find((client) => client.id === selectedClientId)?.name ?? ""
+      (clients ?? []).find((client) => client.id === selectedClientId)?.name ??
+      ""
     );
   }
 
