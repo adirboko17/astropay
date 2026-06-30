@@ -54,7 +54,12 @@ export default async function CredentialsPage({ searchParams }: CredentialsPageP
   }
 
   return (
-    <AppShell wide hideHeader>
+    <AppShell
+      wide
+      hideHeader
+      title="פרטי התחברות"
+      description="ניהול טבלאות ופרטי גישה ללקוחות"
+    >
       {loadError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">לא ניתן לטעון נתונים</p>

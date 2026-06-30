@@ -26,7 +26,7 @@ export default async function HomePage() {
       title="דשבורד הוראות קבע PayPlus"
       description="מעקב אחר לקוחות, חיובים חודשיים וסטטוס הוראות קבע"
     >
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="סה״כ לקוחות" value={String(stats.totalClients)} />
         <StatCard label="נגבו החודש" value={String(stats.chargedThisMonth)} />
         <StatCard label="נכשלו" value={String(stats.failed)} />

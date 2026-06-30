@@ -359,15 +359,15 @@ export function CredentialsManager({
       )}
 
       <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <div>
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5">
+          <div className="min-w-0">
             <Link
               href="/credentials"
               className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-900"
             >
               ← חזור לכל הטבלאות
             </Link>
-            <h2 className="mt-2 text-base font-semibold text-slate-900">
+            <h2 className="mt-2 hidden text-base font-semibold text-slate-900 lg:block">
               {activeTable.name}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
@@ -379,14 +379,14 @@ export function CredentialsManager({
           <button
             type="button"
             onClick={openAddModal}
-            className="h-10 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+            className="h-11 w-full shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:h-10 sm:w-auto"
           >
             + הוסף לטבלה
           </button>
         </div>
 
-        <div className="border-b border-slate-100 px-5 py-3">
-          <div className="relative max-w-md">
+        <div className="border-b border-slate-100 px-4 py-3 sm:px-5">
+          <div className="relative w-full max-w-md">
             <input
               type="search"
               value={searchQuery}
@@ -407,7 +407,46 @@ export function CredentialsManager({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {filteredCredentials.length === 0 ? (
+          <div className="px-4 py-16 text-center sm:px-5">
+            <div className="mx-auto max-w-sm">
+              <p className="text-sm font-medium text-slate-600">
+                {searchQuery.trim()
+                  ? "לא נמצאו תוצאות לחיפוש"
+                  : `אין רשומות ב-${activeTable.name} עדיין`}
+              </p>
+              <p className="mt-1 text-sm text-slate-400">
+                {searchQuery.trim()
+                  ? "נסה שם או אימייל אחר"
+                  : "לחץ על + הוסף לטבלה כדי להוסיף רשומה ראשונה"}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="divide-y divide-slate-100 md:hidden">
+              {filteredCredentials.map((row) => (
+                <CredentialMobileCard
+                  key={row.id}
+                  row={row}
+                  linkedRecordsCount={countCredentialsForClient(
+                    credentials,
+                    row.client_id,
+                  )}
+                  disabled={isBusy}
+                  isDeleting={deletingId === row.id}
+                  onOpenClientCard={
+                    row.client_id
+                      ? () => openClientCard(row.client_id!)
+                      : undefined
+                  }
+                  onEdit={() => openEditModal(row)}
+                  onDelete={() => handleDelete(row.id, row.client_name)}
+                />
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
           <table className="min-w-full border-separate border-spacing-0">
             <thead>
               <tr>
@@ -422,53 +461,33 @@ export function CredentialsManager({
               </tr>
             </thead>
             <tbody>
-              {filteredCredentials.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={visibleColumns.length}
-                    className="px-4 py-16 text-center"
-                  >
-                    <div className="mx-auto max-w-sm">
-                      <p className="text-sm font-medium text-slate-600">
-                        {searchQuery.trim()
-                          ? "לא נמצאו תוצאות לחיפוש"
-                          : `אין רשומות ב-${activeTable.name} עדיין`}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-400">
-                        {searchQuery.trim()
-                          ? "נסה שם או אימייל אחר"
-                          : "לחץ על + הוסף לטבלה כדי להוסיף רשומה ראשונה"}
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredCredentials.map((row, index) => (
-                  <CredentialRow
-                    key={row.id}
-                    row={row}
-                    tableName={getTableName(row.table_id, tables) ?? row.platform}
-                    linkedRecordsCount={countCredentialsForClient(
-                      credentials,
-                      row.client_id,
-                    )}
-                    striped={index % 2 === 1}
-                    showTableColumn={false}
-                    disabled={isBusy}
-                    isDeleting={deletingId === row.id}
-                    onOpenClientCard={
-                      row.client_id
-                        ? () => openClientCard(row.client_id!)
-                        : undefined
-                    }
-                    onEdit={() => openEditModal(row)}
-                    onDelete={() => handleDelete(row.id, row.client_name)}
-                  />
-                ))
-              )}
+              {filteredCredentials.map((row, index) => (
+                <CredentialRow
+                  key={row.id}
+                  row={row}
+                  tableName={getTableName(row.table_id, tables) ?? row.platform}
+                  linkedRecordsCount={countCredentialsForClient(
+                    credentials,
+                    row.client_id,
+                  )}
+                  striped={index % 2 === 1}
+                  showTableColumn={false}
+                  disabled={isBusy}
+                  isDeleting={deletingId === row.id}
+                  onOpenClientCard={
+                    row.client_id
+                      ? () => openClientCard(row.client_id!)
+                      : undefined
+                  }
+                  onEdit={() => openEditModal(row)}
+                  onDelete={() => handleDelete(row.id, row.client_name)}
+                />
+              ))}
             </tbody>
           </table>
         </div>
+          </>
+        )}
       </section>
 
       {addModalOpen ? (
@@ -862,6 +881,107 @@ function EditCredentialModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CredentialMobileCard({
+  row,
+  linkedRecordsCount,
+  disabled,
+  isDeleting,
+  onOpenClientCard,
+  onEdit,
+  onDelete,
+}: {
+  row: ClientCredential;
+  linkedRecordsCount: number;
+  disabled: boolean;
+  isDeleting: boolean;
+  onOpenClientCard?: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const website = row.website_url?.trim() ?? "";
+  const isLink =
+    website.startsWith("http://") || website.startsWith("https://");
+
+  return (
+    <article className="space-y-3 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          {onOpenClientCard ? (
+            <button
+              type="button"
+              onClick={onOpenClientCard}
+              className="truncate text-base font-semibold text-blue-700 transition hover:text-blue-900 hover:underline"
+            >
+              {row.client_name}
+            </button>
+          ) : (
+            <h3 className="truncate text-base font-semibold text-slate-900">
+              {row.client_name}
+            </h3>
+          )}
+          {linkedRecordsCount > 1 ? (
+            <span className="mt-1 inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+              {linkedRecordsCount} רשומות
+            </span>
+          ) : null}
+        </div>
+
+        <RowActionsMenu
+          disabled={disabled}
+          isDeleting={isDeleting}
+          onOpenClientCard={onOpenClientCard}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      </div>
+
+      <dl className="grid grid-cols-1 gap-2 text-sm">
+        <MobileDetail label="אימייל" value={row.login_email || "—"} />
+        <MobileDetail label="משתמש" value={row.login_username || "—"} />
+        <div className="rounded-xl bg-slate-50 px-3 py-2">
+          <dt className="text-[11px] font-medium text-slate-400">סיסמה</dt>
+          <dd className="mt-1">
+            <PasswordDisplay value={row.password ?? ""} />
+          </dd>
+        </div>
+        <div className="rounded-xl bg-slate-50 px-3 py-2">
+          <dt className="text-[11px] font-medium text-slate-400">אתר</dt>
+          <dd className="mt-0.5 truncate">
+            {website ? (
+              isLink ? (
+                <a
+                  href={website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  {website}
+                </a>
+              ) : (
+                <span className="text-slate-700">{website}</span>
+              )
+            ) : (
+              <span className="text-slate-400">—</span>
+            )}
+          </dd>
+        </div>
+        {row.notes ? (
+          <MobileDetail label="הערות" value={row.notes} />
+        ) : null}
+      </dl>
+    </article>
+  );
+}
+
+function MobileDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-slate-50 px-3 py-2">
+      <dt className="text-[11px] font-medium text-slate-400">{label}</dt>
+      <dd className="mt-0.5 truncate font-medium text-slate-700">{value}</dd>
     </div>
   );
 }
