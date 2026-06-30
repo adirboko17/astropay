@@ -111,13 +111,13 @@ export function CredentialsTablesHome({
 
   return (
     <div className="mx-auto max-w-5xl">
-      <section className="mb-8">
+      <section className="mb-6 sm:mb-8">
         <h2 className="text-sm font-medium text-slate-600">התחלה מהירה</h2>
-        <div className="mt-4 flex flex-wrap gap-4">
+        <div className="mt-3 flex flex-wrap gap-3 sm:mt-4 sm:gap-4">
           <button
             type="button"
             onClick={() => setCreateModalOpen(true)}
-            className="group flex w-40 flex-col items-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+            className="group flex w-full max-w-[10rem] flex-col items-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md sm:w-40"
           >
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-[0_1px_3px_rgba(60,64,67,.3)] ring-1 ring-slate-100 transition group-hover:shadow-md">
               <span className="text-3xl font-light text-slate-500">+</span>

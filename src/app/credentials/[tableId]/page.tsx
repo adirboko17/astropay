@@ -82,7 +82,7 @@ export default async function CredentialTablePage({ params }: TablePageProps) {
   await markCredentialTableViewed(tableId);
 
   return (
-    <AppShell wide hideHeader>
+    <AppShell wide hideHeader title={table.name} description="רשומות ופרטי התחברות">
       {loadError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">לא ניתן לטעון נתונים</p>
