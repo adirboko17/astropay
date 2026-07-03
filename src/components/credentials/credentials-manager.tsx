@@ -9,7 +9,6 @@ import {
   deleteCredential,
   updateCredential,
 } from "@/app/credentials/actions";
-import { ClientCardModal } from "@/components/credentials/client-card-modal";
 import {
   ClientSelectorField,
   getClientNameForSave,
@@ -22,7 +21,6 @@ import {
 import {
   buildDraftFromClientCredentials,
   countCredentialsForClient,
-  findClientById,
   sortClients,
 } from "@/lib/credentials/clients";
 import { getPlatformBadgeClass } from "@/lib/credentials/platform-ui";
@@ -71,7 +69,6 @@ export function CredentialsManager({
   const [editDraft, setEditDraft] = useState<CredentialFormData>(EMPTY_CREDENTIAL);
   const [editClientId, setEditClientId] = useState<string | null>(null);
   const [editNewClientName, setEditNewClientName] = useState("");
-  const [cardClientId, setCardClientId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -87,10 +84,6 @@ export function CredentialsManager({
   }, [initialCredentials, initialTables, initialClients]);
 
   const sortedClients = useMemo(() => sortClients(clients), [clients]);
-  const cardClient = useMemo(
-    () => findClientById(clients, cardClientId),
-    [cardClientId, clients],
-  );
 
   const activeTable = table;
 
@@ -115,10 +108,6 @@ export function CredentialsManager({
         (credential.login_email?.toLowerCase().includes(needle) ?? false),
     );
   }, [searchQuery, tableCredentials]);
-
-  function handleSelectTable(tableId: string) {
-    router.push(`/credentials/${tableId}`);
-  }
 
   function handleDraftChange(field: keyof CredentialFormData, value: string) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -160,14 +149,12 @@ export function CredentialsManager({
     setEditDraft(credentialToFormData(row));
     setEditClientId(row.client_id);
     setEditNewClientName(row.client_name);
-    setCardClientId(null);
     setMessage(null);
     setError(null);
   }
 
-  function openClientCard(clientId: string) {
-    setCardClientId(clientId);
-    setEditingCredential(null);
+  function goToCustomer(clientId: string) {
+    router.push(`/customers/${clientId}`);
   }
 
   function closeEditModal() {
@@ -458,7 +445,7 @@ export function CredentialsManager({
                     isDeleting={deletingId === row.id}
                     onOpenClientCard={
                       row.client_id
-                        ? () => openClientCard(row.client_id!)
+                        ? () => goToCustomer(row.client_id!)
                         : undefined
                     }
                     onEdit={() => openEditModal(row)}
@@ -514,33 +501,6 @@ export function CredentialsManager({
           onChange={handleEditDraftChange}
           onClose={closeEditModal}
           onSave={handleUpdate}
-        />
-      ) : null}
-
-      {cardClient ? (
-        <ClientCardModal
-          client={cardClient}
-          credentials={credentials}
-          tables={tables}
-          onClose={() => setCardClientId(null)}
-          onEdit={(credential) => openEditModal(credential)}
-          onGoToTable={(tableId) => {
-            setCardClientId(null);
-            handleSelectTable(tableId);
-          }}
-          onClientRenamed={(clientId, name) => {
-            setClients((current) =>
-              current.map((client) =>
-                client.id === clientId ? { ...client, name } : client,
-              ),
-            );
-            setCredentials((current) =>
-              current.map((row) =>
-                row.client_id === clientId ? { ...row, client_name: name } : row,
-              ),
-            );
-            router.refresh();
-          }}
         />
       ) : null}
 

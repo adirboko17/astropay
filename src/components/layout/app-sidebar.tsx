@@ -11,6 +11,16 @@ const navItems = [
     icon: DashboardIcon,
   },
   {
+    href: "/customers",
+    label: "לקוחות",
+    icon: UsersIcon,
+  },
+  {
+    href: "/collections",
+    label: "גבייה",
+    icon: CollectionsIcon,
+  },
+  {
     href: "/credentials",
     label: "פרטי התחברות",
     icon: KeyIcon,
@@ -104,6 +114,39 @@ function DashboardIcon({ active }: { active: boolean }) {
       strokeWidth="1.8"
     >
       <path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6V11h-6v9Zm0-16v5h6V4h-6Z" />
+    </svg>
+  );
+}
+
+function UsersIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 shrink-0 ${active ? "text-blue-400" : "text-slate-500"}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" />
+      <path d="M15.5 4.7a3.2 3.2 0 0 1 0 6.2" />
+      <path d="M15 14.2c2.7.3 5 2.2 5 4.8" />
+    </svg>
+  );
+}
+
+function CollectionsIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 shrink-0 ${active ? "text-blue-400" : "text-slate-500"}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="M4 6h13a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H4z" />
+      <path d="M4 6v12" />
+      <circle cx="14.5" cy="12" r="2.2" />
     </svg>
   );
 }

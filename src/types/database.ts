@@ -31,6 +31,7 @@ export interface Database {
           raw_payplus_data: Json;
           created_at: string;
           updated_at: string;
+          customer_id: string | null;
         };
         Insert: {
           id?: string;
@@ -53,6 +54,7 @@ export interface Database {
           raw_payplus_data?: Json;
           created_at?: string;
           updated_at?: string;
+          customer_id?: string | null;
         };
         Update: {
           id?: string;
@@ -75,8 +77,17 @@ export interface Database {
           raw_payplus_data?: Json;
           created_at?: string;
           updated_at?: string;
+          customer_id?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "recurring_clients_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "credential_clients";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       recurring_charge_checks: {
         Row: {
@@ -245,6 +256,12 @@ export interface Database {
           notes: string | null;
           created_at: string;
           updated_at: string;
+          email: string | null;
+          phone: string | null;
+          company: string | null;
+          status: string;
+          total_amount_due: number;
+          currency: string;
         };
         Insert: {
           id?: string;
@@ -252,6 +269,12 @@ export interface Database {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          email?: string | null;
+          phone?: string | null;
+          company?: string | null;
+          status?: string;
+          total_amount_due?: number;
+          currency?: string;
         };
         Update: {
           id?: string;
@@ -259,8 +282,106 @@ export interface Database {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          email?: string | null;
+          phone?: string | null;
+          company?: string | null;
+          status?: string;
+          total_amount_due?: number;
+          currency?: string;
         };
         Relationships: [];
+      };
+      customer_payments: {
+        Row: {
+          id: string;
+          customer_id: string;
+          charge_id: string | null;
+          amount: number;
+          currency: string;
+          paid_at: string;
+          method: string | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          customer_id: string;
+          charge_id?: string | null;
+          amount: number;
+          currency?: string;
+          paid_at?: string;
+          method?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          customer_id?: string;
+          charge_id?: string | null;
+          amount?: number;
+          currency?: string;
+          paid_at?: string;
+          method?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_payments_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "credential_clients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_payments_charge_id_fkey";
+            columns: ["charge_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_charges";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_charges: {
+        Row: {
+          id: string;
+          customer_id: string;
+          title: string;
+          amount: number;
+          currency: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          customer_id: string;
+          title: string;
+          amount?: number;
+          currency?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          customer_id?: string;
+          title?: string;
+          amount?: number;
+          currency?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_charges_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "credential_clients";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       credential_tables: {
         Row: {
@@ -301,3 +422,11 @@ export type RecurringClient = Database["public"]["Tables"]["recurring_clients"][
 export type CredentialClient = Database["public"]["Tables"]["credential_clients"]["Row"];
 export type ClientCredential = Database["public"]["Tables"]["client_credentials"]["Row"];
 export type CredentialTable = Database["public"]["Tables"]["credential_tables"]["Row"];
+export type CustomerPayment = Database["public"]["Tables"]["customer_payments"]["Row"];
+export type CustomerCharge = Database["public"]["Tables"]["customer_charges"]["Row"];
+
+/**
+ * `credential_clients` is the customer entity: the central hub that credentials,
+ * billing/collections, and (optionally) a PayPlus recurring subscription all link to.
+ */
+export type Customer = CredentialClient;
