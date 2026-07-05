@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 function revalidateCustomerPaths(customerId?: string) {
   revalidatePath("/customers", "layout");
+  revalidatePath("/projects", "layout");
   revalidatePath("/collections", "layout");
   if (customerId) {
     revalidatePath(`/customers/${customerId}`, "layout");
@@ -49,6 +50,32 @@ export async function createCustomer(data: CustomerFormData) {
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה ביצירת הלקוח",
+    };
+  }
+}
+
+export async function createProject(data: CustomerFormData) {
+  const trimmedName = data.name.trim();
+  if (!trimmedName) {
+    return { error: "שם הפרויקט הוא שדה חובה" };
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const normalized = normalizeCustomerInput(data);
+    const { data: created, error } = await supabase
+      .from("credential_clients")
+      .insert({ ...normalized, total_amount_due: 0 })
+      .select("id")
+      .single();
+
+    if (error) return { error: error.message };
+
+    revalidateCustomerPaths(created.id);
+    return { success: true as const, id: created.id };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "שגיאה ביצירת הפרויקט",
     };
   }
 }

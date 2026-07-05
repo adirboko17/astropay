@@ -6,6 +6,7 @@ import { CUSTOMER_STATUSES, type CustomerFormData } from "@/lib/customers/consta
 
 interface CustomerFormModalProps {
   mode: "create" | "edit";
+  variant?: "customer" | "project";
   draft: CustomerFormData;
   isSaving: boolean;
   hasCharges?: boolean;
@@ -16,6 +17,7 @@ interface CustomerFormModalProps {
 
 export function CustomerFormModal({
   mode,
+  variant = "customer",
   draft,
   isSaving,
   hasCharges = false,
@@ -23,6 +25,7 @@ export function CustomerFormModal({
   onClose,
   onSave,
 }: CustomerFormModalProps) {
+  const isProject = variant === "project";
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape" && !isSaving) onClose();
@@ -48,19 +51,27 @@ export function CustomerFormModal({
         className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
       >
         <h3 id="customer-form-title" className="text-lg font-semibold text-slate-900">
-          {mode === "create" ? "לקוח חדש" : "עריכת פרטי לקוח"}
+          {mode === "create"
+            ? isProject
+              ? "פרויקט חדש"
+              : "לקוח חדש"
+            : isProject
+              ? "עריכת פרטי פרויקט"
+              : "עריכת פרטי לקוח"}
         </h3>
         <p className="mt-1 text-sm text-slate-500">
-          פרטי הקשר וסכום הגבייה הכולל — ניתן לעדכן בכל עת
+          {isProject
+            ? "פרטי הקשר של הפרויקט — ניתן לעדכן בכל עת"
+            : "פרטי הקשר וסכום הגבייה הכולל — ניתן לעדכן בכל עת"}
         </p>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Field
-              label="שם לקוח"
+              label={isProject ? "שם פרויקט" : "שם לקוח"}
               value={draft.name}
               disabled={isSaving}
-              placeholder="שם הלקוח / החברה"
+              placeholder={isProject ? "שם הפרויקט" : "שם הלקוח / החברה"}
               onChange={(value) => onChange("name", value)}
               required
             />
@@ -101,34 +112,38 @@ export function CustomerFormModal({
             placeholder="05X-XXXXXXX"
             onChange={(value) => onChange("phone", value)}
           />
-          <div>
-            <Field
-              label="סכום כולל לגבייה"
-              value={draft.total_amount_due}
-              disabled={isSaving || hasCharges}
-              placeholder="0"
-              type="number"
-              onChange={(value) => onChange("total_amount_due", value)}
-            />
-            {hasCharges ? (
-              <p className="mt-1 text-[11px] text-slate-400">
-                מנוהל אוטומטית לפי החיובים/השירותים בכרטיס הלקוח
-              </p>
-            ) : null}
-          </div>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-medium text-slate-500">מטבע</span>
-            <select
-              value={draft.currency}
-              disabled={isSaving}
-              onChange={(event) => onChange("currency", event.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 disabled:opacity-50"
-            >
-              <option value="ILS">שקל (ILS)</option>
-              <option value="USD">דולר (USD)</option>
-              <option value="EUR">יורו (EUR)</option>
-            </select>
-          </label>
+          {!isProject ? (
+            <>
+              <div>
+                <Field
+                  label="סכום כולל לגבייה"
+                  value={draft.total_amount_due}
+                  disabled={isSaving || hasCharges}
+                  placeholder="0"
+                  type="number"
+                  onChange={(value) => onChange("total_amount_due", value)}
+                />
+                {hasCharges ? (
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    מנוהל אוטומטית לפי החיובים/השירותים בכרטיס הלקוח
+                  </p>
+                ) : null}
+              </div>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-medium text-slate-500">מטבע</span>
+                <select
+                  value={draft.currency}
+                  disabled={isSaving}
+                  onChange={(event) => onChange("currency", event.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100 disabled:opacity-50"
+                >
+                  <option value="ILS">שקל (ILS)</option>
+                  <option value="USD">דולר (USD)</option>
+                  <option value="EUR">יורו (EUR)</option>
+                </select>
+              </label>
+            </>
+          ) : null}
           <div className="sm:col-span-2">
             <Field
               label="הערות"
@@ -147,7 +162,13 @@ export function CustomerFormModal({
             onClick={onSave}
             className="h-11 flex-1 rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-70"
           >
-            {isSaving ? "שומר..." : mode === "create" ? "+ הוסף לקוח" : "שמור שינויים"}
+            {isSaving
+              ? "שומר..."
+              : mode === "create"
+                ? isProject
+                  ? "+ הוסף פרויקט"
+                  : "+ הוסף לקוח"
+                : "שמור שינויים"}
           </button>
           <button
             type="button"

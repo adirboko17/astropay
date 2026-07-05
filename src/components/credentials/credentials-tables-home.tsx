@@ -9,6 +9,8 @@ import {
   updateCredentialTableName,
 } from "@/app/credentials/actions";
 import { CreateTableModal } from "@/components/credentials/create-table-modal";
+import { PageHero } from "@/components/layout/page-hero";
+import { TableRowActionsMenu } from "@/components/ui/table-row-actions-menu";
 import {
   buildTableListItems,
   formatTableDate,
@@ -110,24 +112,24 @@ export function CredentialsTablesHome({
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <section className="mb-8">
-        <h2 className="text-sm font-medium text-slate-600">התחלה מהירה</h2>
-        <div className="mt-4 flex flex-wrap gap-4">
-          <button
-            type="button"
-            onClick={() => setCreateModalOpen(true)}
-            className="group flex w-40 flex-col items-center rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
-          >
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-[0_1px_3px_rgba(60,64,67,.3)] ring-1 ring-slate-100 transition group-hover:shadow-md">
-              <span className="text-3xl font-light text-slate-500">+</span>
-            </span>
-            <span className="mt-3 text-sm font-medium text-slate-700">
-              טבלה חדשה
-            </span>
-          </button>
-        </div>
-      </section>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHero
+        title="פרטי התחברות"
+        description="סיסמאות, גישות וחשבונות — מאורגנים בטבלאות לפי פלטפורמה"
+        accent="slate"
+        metrics={[
+          { label: "טבלאות", value: String(tables.length) },
+          { label: "רשומות", value: String(credentials.length) },
+        ]}
+      >
+        <button
+          type="button"
+          onClick={() => setCreateModalOpen(true)}
+          className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100"
+        >
+          + טבלה חדשה
+        </button>
+      </PageHero>
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
@@ -339,89 +341,13 @@ function TableRow({
       <TableRowActionsMenu
         disabled={isBusy}
         isDeleting={isDeleting}
-        menuOpen={menuOpen}
-        onToggle={() => onOpenMenu(menuOpen ? null : table.id)}
-        onClose={() => onOpenMenu(null)}
-        onEdit={() => {
-          onOpenMenu(null);
-          onEdit(table);
-        }}
-        onDelete={() => {
-          onOpenMenu(null);
-          onDelete(table);
-        }}
+        editLabel="ערוך שם טבלה"
+        deleteLabel="מחק טבלה"
+        open={menuOpen}
+        onOpenChange={(open) => onOpenMenu(open ? table.id : null)}
+        onEdit={() => onEdit(table)}
+        onDelete={() => onDelete(table)}
       />
-    </div>
-  );
-}
-
-function TableRowActionsMenu({
-  disabled,
-  isDeleting,
-  menuOpen,
-  onToggle,
-  onClose,
-  onEdit,
-  onDelete,
-}: {
-  disabled: boolean;
-  isDeleting: boolean;
-  menuOpen: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="relative flex justify-center">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onToggle}
-        aria-label="פעולות"
-        aria-expanded={menuOpen}
-        aria-haspopup="menu"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-      >
-        <span>פעולות</span>
-        <span className="text-base leading-none text-slate-400" aria-hidden="true">
-          ⋮
-        </span>
-      </button>
-
-      {menuOpen ? (
-        <>
-          <button
-            type="button"
-            aria-label="סגור תפריט"
-            className="fixed inset-0 z-10"
-            onClick={onClose}
-          />
-          <div
-            role="menu"
-            className="absolute end-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-          >
-            <button
-              type="button"
-              role="menuitem"
-              disabled={disabled}
-              onClick={onEdit}
-              className="flex w-full px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-            >
-              ערוך שם טבלה
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              disabled={disabled || isDeleting}
-              onClick={onDelete}
-              className="flex w-full px-4 py-2 text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-            >
-              {isDeleting ? "מוחק..." : "מחק טבלה"}
-            </button>
-          </div>
-        </>
-      ) : null}
     </div>
   );
 }

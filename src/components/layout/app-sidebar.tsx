@@ -1,14 +1,23 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { logoutAction } from "@/app/login/actions";
+
 const navItems = [
   {
     href: "/",
-    label: "דשבורד PayPlus",
+    label: "דשבורד",
     icon: DashboardIcon,
+    exact: true,
+  },
+  {
+    href: "/payplus",
+    label: "PayPlus",
+    icon: PayPlusIcon,
   },
   {
     href: "/customers",
@@ -16,9 +25,19 @@ const navItems = [
     icon: UsersIcon,
   },
   {
+    href: "/projects",
+    label: "פרויקטים",
+    icon: ProjectsIcon,
+  },
+  {
     href: "/collections",
     label: "גבייה",
     icon: CollectionsIcon,
+  },
+  {
+    href: "/tasks",
+    label: "משימות",
+    icon: TasksIcon,
   },
   {
     href: "/credentials",
@@ -42,7 +61,13 @@ export function AppSidebar() {
         >
           <MenuIcon />
         </button>
-        <span className="font-bold text-slate-900">AsrtoPay</span>
+        <Image
+          src="/assets/astro-logo-11.png"
+          alt="Astro Project"
+          width={120}
+          height={32}
+          className="h-7 w-auto object-contain"
+        />
         <div className="w-9" />
       </div>
 
@@ -56,18 +81,21 @@ export function AppSidebar() {
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 end-0 z-50 flex w-64 flex-col bg-slate-950 transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 ${
+        className={`fixed inset-y-0 start-0 z-50 flex h-screen w-64 shrink-0 flex-col bg-slate-950 transition-transform duration-200 lg:z-30 ${
           mobileOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         }`}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-slate-800 px-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
-            A
-          </span>
-          <div>
-            <p className="text-sm font-bold text-white">AsrtoPay</p>
-            <p className="text-[11px] text-slate-500">ניהול פנימי</p>
-          </div>
+        <div className="flex justify-center border-b border-slate-800 px-5 py-4">
+          <Link href="/" onClick={() => setMobileOpen(false)} className="block">
+            <Image
+              src="/assets/astro-logo-09.png"
+              alt="Astro Project"
+              width={130}
+              height={36}
+              priority
+              className="mx-auto h-7 w-auto object-contain"
+            />
+          </Link>
         </div>
 
         <nav className="flex-1 space-y-1 p-3">
@@ -75,7 +103,9 @@ export function AppSidebar() {
             תפריט
           </p>
           {navItems.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active = item.exact
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
 
             return (
@@ -97,10 +127,34 @@ export function AppSidebar() {
         </nav>
 
         <div className="border-t border-slate-800 p-4">
-          <p className="text-[11px] text-slate-500">PayPlus · Supabase</p>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="w-full rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
+            >
+              התנתקות
+            </button>
+          </form>
+          <p className="mt-3 text-[11px] text-slate-500">PayPlus · Supabase</p>
         </div>
       </aside>
     </>
+  );
+}
+
+function PayPlusIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 shrink-0 ${active ? "text-blue-400" : "text-slate-500"}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="M4 6h13a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H4z" />
+      <path d="M4 6v12" />
+      <circle cx="14.5" cy="12" r="2.2" />
+    </svg>
   );
 }
 
@@ -135,6 +189,20 @@ function UsersIcon({ active }: { active: boolean }) {
   );
 }
 
+function ProjectsIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 shrink-0 ${active ? "text-blue-400" : "text-slate-500"}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+    </svg>
+  );
+}
+
 function CollectionsIcon({ active }: { active: boolean }) {
   return (
     <svg
@@ -147,6 +215,23 @@ function CollectionsIcon({ active }: { active: boolean }) {
       <path d="M4 6h13a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H4z" />
       <path d="M4 6v12" />
       <circle cx="14.5" cy="12" r="2.2" />
+    </svg>
+  );
+}
+
+function TasksIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 shrink-0 ${active ? "text-blue-400" : "text-slate-500"}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="M9 6h11M9 12h11M9 18h11" strokeLinecap="round" />
+      <path d="m3.5 5.5 1 1L6.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m3.5 11.5 1 1 2-2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m3.5 17.5 1 1 2-2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

@@ -18,9 +18,9 @@ export function ClientsTable({ clients }: ClientsTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur">
       <div className="border-b border-slate-100 px-6 py-5">
-        <h2 className="text-lg font-semibold text-slate-900">לקוחות</h2>
+        <h2 className="text-lg font-semibold text-slate-900">הוראות קבע</h2>
         <p className="mt-1 text-sm text-slate-500">
-          רשימת לקוחות עם הוראות קבע — הנתונים יופיעו לאחר סנכרון PayPlus
+          רשימת הוראות קבע מ-PayPlus — הנתונים יופיעו לאחר סנכרון
         </p>
       </div>
 

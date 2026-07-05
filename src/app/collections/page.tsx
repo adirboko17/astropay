@@ -33,7 +33,7 @@ export default async function CollectionsPage() {
   }
 
   return (
-    <AppShell title="גבייה" description="כמה כל לקוח שילם מתוך כמה, וכמה נשאר לגבות">
+    <AppShell>
       {loadError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">לא ניתן לטעון נתונים</p>

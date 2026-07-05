@@ -33,6 +33,7 @@ import {
   formatDate,
   getCollectionStatus,
   getCollectionStatusBadgeClass,
+  isBillingCustomer,
   COLLECTION_STATUS_LABEL,
 } from "@/lib/customers/billing";
 import {
@@ -129,6 +130,7 @@ export function CustomerDetail({
     [customer, payments, charges],
   );
   const status = getCollectionStatus(balance);
+  const isProject = !isBillingCustomer(customer, payments, charges);
 
   const sortedCharges = useMemo(
     () => [...charges].sort((a, b) => b.created_at.localeCompare(a.created_at)),
@@ -430,10 +432,10 @@ export function CustomerDetail({
   return (
     <div className="space-y-5">
       <Link
-        href="/customers"
+        href={isProject ? "/projects" : "/customers"}
         className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-900"
       >
-        ← חזור לכל הלקוחות
+        {isProject ? "← חזור לכל הפרויקטים" : "← חזור לכל הלקוחות"}
       </Link>
 
       {(message || error) && (
@@ -773,6 +775,7 @@ export function CustomerDetail({
       {editingProfile ? (
         <CustomerFormModal
           mode="edit"
+          variant={isProject ? "project" : "customer"}
           draft={profileDraft}
           isSaving={isSaving}
           hasCharges={charges.length > 0}

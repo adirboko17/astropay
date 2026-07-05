@@ -410,6 +410,103 @@ export interface Database {
         };
         Relationships: [];
       };
+      tasks: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          category: string;
+          customer_id: string | null;
+          context_label: string | null;
+          assignee: string | null;
+          status: string;
+          due_date: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          category?: string;
+          customer_id?: string | null;
+          context_label?: string | null;
+          assignee?: string | null;
+          status?: string;
+          due_date?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          description?: string | null;
+          category?: string;
+          customer_id?: string | null;
+          context_label?: string | null;
+          assignee?: string | null;
+          status?: string;
+          due_date?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tasks_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "credential_clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      task_subtasks: {
+        Row: {
+          id: string;
+          task_id: string;
+          title: string;
+          assignee: string | null;
+          status: string;
+          sort_order: number;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          title: string;
+          assignee?: string | null;
+          status?: string;
+          sort_order?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          task_id?: string;
+          title?: string;
+          assignee?: string | null;
+          status?: string;
+          sort_order?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_subtasks_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -424,6 +521,8 @@ export type ClientCredential = Database["public"]["Tables"]["client_credentials"
 export type CredentialTable = Database["public"]["Tables"]["credential_tables"]["Row"];
 export type CustomerPayment = Database["public"]["Tables"]["customer_payments"]["Row"];
 export type CustomerCharge = Database["public"]["Tables"]["customer_charges"]["Row"];
+export type Task = Database["public"]["Tables"]["tasks"]["Row"];
+export type TaskSubtask = Database["public"]["Tables"]["task_subtasks"]["Row"];
 
 /**
  * `credential_clients` is the customer entity: the central hub that credentials,

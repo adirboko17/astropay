@@ -4,13 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { createCustomer, deleteCustomer, updateCustomer } from "@/app/customers/actions";
+import { createCustomer, createProject, deleteCustomer, updateCustomer } from "@/app/customers/actions";
 import { CustomerFormModal } from "@/components/customers/customer-form-modal";
+import { PageHero } from "@/components/layout/page-hero";
+import { TableRowActionsMenu } from "@/components/ui/table-row-actions-menu";
 import {
   computeCustomerBalance,
   formatCurrency,
   getCollectionStatus,
   getCollectionStatusBadgeClass,
+  isBillingCustomer,
+  sortCustomersByCollectionStatus,
   COLLECTION_STATUS_LABEL,
 } from "@/lib/customers/billing";
 import {
@@ -30,6 +34,7 @@ import type {
 } from "@/types/database";
 
 interface CustomersManagerProps {
+  mode: "customers" | "projects";
   initialCustomers: Customer[];
   initialCredentials: Pick<ClientCredential, "client_id">[];
   initialPayments: CustomerPayment[];
@@ -38,6 +43,7 @@ interface CustomersManagerProps {
 }
 
 export function CustomersManager({
+  mode,
   initialCustomers,
   initialCredentials,
   initialPayments,
@@ -57,7 +63,38 @@ export function CustomersManager({
   const [error, setError] = useState<string | null>(null);
 
   const sorted = useMemo(() => sortCustomers(customers), [customers]);
-  const filtered = useMemo(() => filterCustomers(sorted, searchQuery), [sorted, searchQuery]);
+
+  const billingCustomers = useMemo(
+    () =>
+      sorted.filter((customer) =>
+        isBillingCustomer(customer, initialPayments, initialCharges),
+      ),
+    [sorted, initialPayments, initialCharges],
+  );
+
+  const ownProjects = useMemo(
+    () =>
+      sorted.filter(
+        (customer) => !isBillingCustomer(customer, initialPayments, initialCharges),
+      ),
+    [sorted, initialPayments, initialCharges],
+  );
+
+  const activeList = mode === "customers" ? billingCustomers : ownProjects;
+  const filtered = useMemo(() => {
+    const list = filterCustomers(activeList, searchQuery);
+    if (mode === "customers") {
+      return sortCustomersByCollectionStatus(list, initialPayments, initialCharges);
+    }
+    return list;
+  }, [activeList, searchQuery, mode, initialPayments, initialCharges]);
+
+  const tableColumns =
+    mode === "customers"
+      ? ["לקוח", "פרטי קשר", "סטטוס", "פרטי התחברות", "גבייה", "פעולות"]
+      : ["פרויקט", "פרטי קשר", "סטטוס", "פרטי התחברות", "פעולות"];
+
+  const isCustomersMode = mode === "customers";
 
   function openCreate() {
     setDraft(EMPTY_CUSTOMER);
@@ -78,7 +115,8 @@ export function CustomersManager({
     setMessage(null);
 
     try {
-      const result = await createCustomer(draft);
+      const createAction = isCustomersMode ? createCustomer : createProject;
+      const result = await createAction(draft);
       if (result.error) {
         setError(result.error);
         return;
@@ -166,6 +204,21 @@ export function CustomersManager({
 
   return (
     <div className="space-y-5">
+      <PageHero
+        title={isCustomersMode ? "לקוחות" : "פרויקטים שלי"}
+        description={
+          isCustomersMode
+            ? "ניהול לקוחות, גבייה ופרטי התחברות"
+            : "פרויקטים אישיים ללא גבייה — פרטי התחברות במקום אחד"
+        }
+        accent={isCustomersMode ? "blue" : "violet"}
+        metrics={[
+          isCustomersMode
+            ? { label: "לקוחות עם גבייה", value: String(billingCustomers.length) }
+            : { label: "פרויקטים", value: String(ownProjects.length) },
+        ]}
+      />
+
       {(message || error) && (
         <div
           className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
@@ -181,11 +234,17 @@ export function CustomersManager({
       <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">לקוחות</h2>
+            <h2 className="text-base font-semibold text-slate-900">
+              {isCustomersMode ? "לקוחות" : "פרויקטים שלי"}
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              {searchQuery.trim()
-                ? `${filtered.length} מתוך ${customers.length} לקוחות`
-                : `${customers.length} לקוחות`}
+              {isCustomersMode
+                ? searchQuery.trim()
+                  ? `${filtered.length} מתוך ${billingCustomers.length} לקוחות`
+                  : `${billingCustomers.length} לקוחות עם סכום גבייה`
+                : searchQuery.trim()
+                  ? `${filtered.length} מתוך ${ownProjects.length} פרויקטים`
+                  : `${ownProjects.length} פרויקטים ללא גבייה`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -201,9 +260,13 @@ export function CustomersManager({
             <button
               type="button"
               onClick={openCreate}
-              className="h-10 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+              className={`h-10 shrink-0 rounded-full px-5 text-sm font-semibold text-white shadow-sm transition ${
+                isCustomersMode
+                  ? "bg-emerald-600 hover:bg-emerald-700"
+                  : "bg-violet-600 hover:bg-violet-700"
+              }`}
             >
-              + לקוח חדש
+              {isCustomersMode ? "+ לקוח חדש" : "+ פרויקט חדש"}
             </button>
           </div>
         </div>
@@ -212,27 +275,33 @@ export function CustomersManager({
           <table className="min-w-full border-separate border-spacing-0">
             <thead>
               <tr>
-                {["לקוח", "פרטי קשר", "סטטוס", "פרטי התחברות", "גבייה", "פעולות"].map(
-                  (column) => (
-                    <th
-                      key={column}
-                      className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-4 py-3 text-start text-xs font-semibold tracking-wide text-slate-500 backdrop-blur"
-                    >
-                      {column}
-                    </th>
-                  ),
-                )}
+                {tableColumns.map((column) => (
+                  <th
+                    key={column}
+                    className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-4 py-3 text-start text-xs font-semibold tracking-wide text-slate-500 backdrop-blur"
+                  >
+                    {column}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center">
+                  <td colSpan={tableColumns.length} className="px-4 py-16 text-center">
                     <p className="text-sm font-medium text-slate-600">
-                      {searchQuery.trim() ? "לא נמצאו תוצאות לחיפוש" : "אין לקוחות עדיין"}
+                      {searchQuery.trim()
+                        ? "לא נמצאו תוצאות לחיפוש"
+                        : isCustomersMode
+                          ? "אין לקוחות עם סכום גבייה"
+                          : "אין פרויקטים עדיין"}
                     </p>
                     <p className="mt-1 text-sm text-slate-400">
-                      {searchQuery.trim() ? "נסה חיפוש אחר" : 'לחץ על "+ לקוח חדש" כדי להתחיל'}
+                      {searchQuery.trim()
+                        ? "נסה חיפוש אחר"
+                        : isCustomersMode
+                          ? 'לחץ על "+ לקוח חדש" כדי להתחיל'
+                          : 'לחץ על "+ פרויקט חדש" כדי להתחיל'}
                     </p>
                   </td>
                 </tr>
@@ -287,8 +356,8 @@ export function CustomersManager({
                           </span>
                         ) : null}
                       </td>
-                      <td className="border-b border-slate-100 px-4 py-3 text-sm">
-                        {balance.totalDue > 0 ? (
+                      {isCustomersMode ? (
+                        <td className="border-b border-slate-100 px-4 py-3 text-sm">
                           <div className="space-y-1">
                             <span
                               className={`inline-flex rounded-lg px-2 py-0.5 text-[11px] font-medium ${getCollectionStatusBadgeClass(status)}`}
@@ -300,28 +369,15 @@ export function CustomersManager({
                               {formatCurrency(balance.totalDue, balance.currency)}
                             </p>
                           </div>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
+                        </td>
+                      ) : null}
                       <td className="border-b border-slate-100 px-4 py-3">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(customer)}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                          >
-                            ערוך
-                          </button>
-                          <button
-                            type="button"
-                            disabled={deletingId === customer.id}
-                            onClick={() => handleDelete(customer)}
-                            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                          >
-                            {deletingId === customer.id ? "מוחק..." : "מחק"}
-                          </button>
-                        </div>
+                        <TableRowActionsMenu
+                          disabled={deletingId === customer.id}
+                          isDeleting={deletingId === customer.id}
+                          onEdit={() => openEdit(customer)}
+                          onDelete={() => handleDelete(customer)}
+                        />
                       </td>
                     </tr>
                   );
@@ -335,6 +391,7 @@ export function CustomersManager({
       {createOpen ? (
         <CustomerFormModal
           mode="create"
+          variant={isCustomersMode ? "customer" : "project"}
           draft={draft}
           isSaving={isSaving}
           onChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))}
@@ -346,6 +403,7 @@ export function CustomersManager({
       {editingCustomer ? (
         <CustomerFormModal
           mode="edit"
+          variant={isCustomersMode ? "customer" : "project"}
           draft={editDraft}
           isSaving={isSaving}
           onChange={(field, value) => setEditDraft((current) => ({ ...current, [field]: value }))}

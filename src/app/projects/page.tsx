@@ -13,7 +13,7 @@ import type {
 
 export const dynamic = "force-dynamic";
 
-export default async function CustomersPage() {
+export default async function ProjectsPage() {
   let customers: Customer[] = [];
   let credentials: Pick<ClientCredential, "client_id">[] = [];
   let payments: CustomerPayment[] = [];
@@ -44,7 +44,7 @@ export default async function CustomersPage() {
     charges = chargesResult.data ?? [];
     recurringClients = recurringResult.data ?? [];
   } catch (error) {
-    loadError = error instanceof Error ? error.message : "שגיאה בטעינת הלקוחות";
+    loadError = error instanceof Error ? error.message : "שגיאה בטעינת הפרויקטים";
   }
 
   return (
@@ -58,12 +58,12 @@ export default async function CustomersPage() {
         <Suspense
           fallback={
             <div className="rounded-2xl border border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
-              טוען לקוחות...
+              טוען פרויקטים...
             </div>
           }
         >
           <CustomersManager
-            mode="customers"
+            mode="projects"
             initialCustomers={customers}
             initialCredentials={credentials}
             initialPayments={payments}

@@ -1,57 +1,88 @@
-import { ClientsTable } from "@/components/dashboard/clients-table";
-import { StatCard } from "@/components/dashboard/stat-card";
+import { MainDashboard } from "@/components/dashboard/main-dashboard";
 import { AppShell } from "@/components/layout/app-shell";
+import { getUserDisplayName } from "@/lib/auth/user-names";
+import { computeDashboardStats } from "@/lib/dashboard/stats";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type {
+  ClientCredential,
+  CredentialTable,
+  Customer,
+  CustomerCharge,
+  CustomerPayment,
+  RecurringClient,
+} from "@/types/database";
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const { data: clients, error } = await supabase
-    .from("recurring_clients")
-    .select("*")
-    .order("customer_name", { ascending: true });
+  const authClient = await createClient();
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+  const userName = getUserDisplayName(user?.email) ?? undefined;
 
-  const clientList = error ? [] : (clients ?? []);
+  let customers: Customer[] = [];
+  let payments: CustomerPayment[] = [];
+  let charges: CustomerCharge[] = [];
+  let credentials: Pick<ClientCredential, "id">[] = [];
+  let tables: Pick<CredentialTable, "id">[] = [];
+  let recurringClients: RecurringClient[] = [];
+  let loadError: string | null = null;
 
-  const stats = {
-    totalClients: clientList.length,
-    chargedThisMonth: 0,
-    failed: 0,
-    overdue: 0,
-    expectedAmount: 0,
-    chargedAmount: 0,
-  };
+  try {
+    const supabase = createAdminClient();
+
+    const [
+      customersResult,
+      paymentsResult,
+      chargesResult,
+      credentialsResult,
+      tablesResult,
+      recurringResult,
+    ] = await Promise.all([
+      supabase.from("credential_clients").select("*"),
+      supabase.from("customer_payments").select("*"),
+      supabase.from("customer_charges").select("*"),
+      supabase.from("client_credentials").select("id"),
+      supabase.from("credential_tables").select("id"),
+      supabase.from("recurring_clients").select("*"),
+    ]);
+
+    if (customersResult.error) {
+      loadError = customersResult.error.message;
+    } else {
+      customers = customersResult.data ?? [];
+    }
+
+    payments = paymentsResult.data ?? [];
+    charges = chargesResult.data ?? [];
+    credentials = credentialsResult.data ?? [];
+    tables = tablesResult.data ?? [];
+    recurringClients = recurringResult.data ?? [];
+  } catch (error) {
+    loadError = error instanceof Error ? error.message : "שגיאה בטעינת הדשבורד";
+  }
+
+  const stats = computeDashboardStats(
+    customers,
+    payments,
+    charges,
+    credentials,
+    tables,
+    recurringClients,
+  );
 
   return (
-    <AppShell
-      title="דשבורד הוראות קבע PayPlus"
-      description="מעקב אחר לקוחות, חיובים חודשיים וסטטוס הוראות קבע"
-    >
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="סה״כ לקוחות" value={String(stats.totalClients)} />
-        <StatCard label="נגבו החודש" value={String(stats.chargedThisMonth)} />
-        <StatCard label="נכשלו" value={String(stats.failed)} />
-        <StatCard label="באיחור" value={String(stats.overdue)} />
-        <StatCard
-          label="סכום צפוי"
-          value={formatCurrency(stats.expectedAmount)}
-        />
-        <StatCard
-          label="סכום שנגבה"
-          value={formatCurrency(stats.chargedAmount)}
-        />
-      </section>
-
-      <section className="mt-8">
-        <ClientsTable clients={clientList} />
-      </section>
+    <AppShell>
+      {loadError ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-medium">לא ניתן לטעון נתונים</p>
+          <p className="mt-1">{loadError}</p>
+        </div>
+      ) : (
+        <MainDashboard stats={stats} userName={userName} />
+      )}
     </AppShell>
   );
-}
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("he-IL", {
-    style: "currency",
-    currency: "ILS",
-    maximumFractionDigits: 0,
-  }).format(amount);
 }

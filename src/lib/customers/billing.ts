@@ -43,6 +43,14 @@ export function sumCharges(charges: CustomerCharge[]) {
   return charges.reduce((sum, charge) => sum + Number(charge.amount || 0), 0);
 }
 
+export function isBillingCustomer(
+  customer: Customer,
+  payments: CustomerPayment[],
+  charges: CustomerCharge[] = [],
+) {
+  return computeCustomerBalance(customer, payments, charges).totalDue > 0;
+}
+
 export function computeCustomerBalance(
   customer: Customer,
   payments: CustomerPayment[],
@@ -101,6 +109,28 @@ export function getCollectionStatus(balance: CustomerBalance): CollectionStatus 
   }
   if (balance.totalPaid > 0) return "partial";
   return "unpaid";
+}
+
+const COLLECTION_STATUS_SORT_ORDER: Record<CollectionStatus, number> = {
+  unpaid: 0,
+  partial: 1,
+  paid: 2,
+  overpaid: 3,
+  no_due: 4,
+};
+
+export function sortCustomersByCollectionStatus(
+  customers: Customer[],
+  payments: CustomerPayment[],
+  charges: CustomerCharge[],
+) {
+  return [...customers].sort((a, b) => {
+    const statusA = getCollectionStatus(computeCustomerBalance(a, payments, charges));
+    const statusB = getCollectionStatus(computeCustomerBalance(b, payments, charges));
+    const orderDiff = COLLECTION_STATUS_SORT_ORDER[statusA] - COLLECTION_STATUS_SORT_ORDER[statusB];
+    if (orderDiff !== 0) return orderDiff;
+    return a.name.localeCompare(b.name, "he");
+  });
 }
 
 export const COLLECTION_STATUS_LABEL: Record<CollectionStatus, string> = {

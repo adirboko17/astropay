@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { createPayment, type PaymentFormData } from "@/app/customers/actions";
 import { PaymentFormModal } from "@/components/customers/payment-form-modal";
+import { PageHero } from "@/components/layout/page-hero";
 import {
   computeCustomerBalance,
   computeTotals,
@@ -14,6 +15,7 @@ import {
   getCollectionStatus,
   getCollectionStatusBadgeClass,
   COLLECTION_STATUS_LABEL,
+  sortCustomersByCollectionStatus,
   type CustomerBalance,
 } from "@/lib/customers/billing";
 import { filterCustomers, sortCustomers } from "@/lib/customers/customers";
@@ -34,7 +36,7 @@ const EMPTY_PAYMENT: PaymentFormData = {
   charge_id: "",
 };
 
-type SortKey = "remaining" | "totalDue" | "totalPaid" | "name";
+type SortKey = "status" | "remaining" | "totalDue" | "totalPaid" | "name";
 
 export function CollectionsManager({
   initialCustomers,
@@ -43,7 +45,7 @@ export function CollectionsManager({
 }: CollectionsManagerProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("remaining");
+  const [sortKey, setSortKey] = useState<SortKey>("status");
   const [payingCustomer, setPayingCustomer] = useState<Customer | null>(null);
   const [paymentDraft, setPaymentDraft] = useState<PaymentFormData>(EMPTY_PAYMENT);
   const [isSaving, setIsSaving] = useState(false);
@@ -82,6 +84,10 @@ export function CollectionsManager({
   }, [payingCustomer, initialCharges]);
 
   const sortedCustomers = useMemo(() => {
+    if (sortKey === "status") {
+      return sortCustomersByCollectionStatus(filtered, initialPayments, initialCharges);
+    }
+
     return [...filtered].sort((a, b) => {
       if (sortKey === "name") return a.name.localeCompare(b.name, "he");
       const balanceA = balances.get(a.id);
@@ -92,7 +98,7 @@ export function CollectionsManager({
       if (sortKey === "totalDue") return balanceB.totalDue - balanceA.totalDue;
       return balanceB.totalPaid - balanceA.totalPaid;
     });
-  }, [filtered, sortKey, balances]);
+  }, [filtered, sortKey, balances, initialPayments, initialCharges]);
 
   const totals = useMemo(
     () => computeTotals(Array.from(balances.values())),
@@ -128,8 +134,31 @@ export function CollectionsManager({
     }
   }
 
+  const collectionPercent = totals.totalDue > 0 ? (totals.totalPaid / totals.totalDue) * 100 : 0;
+
   return (
     <div className="space-y-5">
+      <PageHero
+        title="גבייה"
+        description="כמה כל לקוח שילם מתוך כמה, וכמה נשאר לגבות"
+        accent="emerald"
+        metrics={[
+          { label: "סה״כ לגבייה", value: formatCurrency(totals.totalDue) },
+          { label: "נגבה בפועל", value: formatCurrency(totals.totalPaid) },
+          { label: "נותר לגבייה", value: formatCurrency(totals.remaining) },
+        ]}
+        progress={
+          totals.totalDue > 0
+            ? {
+                percent: collectionPercent,
+                label: "התקדמות גבייה",
+                startLabel: `${formatCurrency(totals.totalPaid)} נגבו`,
+                endLabel: `מתוך ${formatCurrency(totals.totalDue)}`,
+              }
+            : undefined
+        }
+      />
+
       {(message || error) && (
         <div
           className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
@@ -141,12 +170,6 @@ export function CollectionsManager({
           {error ?? message}
         </div>
       )}
-
-      <section className="grid gap-4 sm:grid-cols-3">
-        <SummaryCard label="סה״כ לגבייה" value={formatCurrency(totals.totalDue)} tone="slate" />
-        <SummaryCard label="נגבה בפועל" value={formatCurrency(totals.totalPaid)} tone="emerald" />
-        <SummaryCard label="נותר לגבייה" value={formatCurrency(totals.remaining)} tone="red" />
-      </section>
 
       <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
@@ -162,6 +185,7 @@ export function CollectionsManager({
               onChange={(event) => setSortKey(event.target.value as SortKey)}
               className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
             >
+              <option value="status">מיין: סטטוס</option>
               <option value="remaining">מיין: נותר לגבייה</option>
               <option value="totalDue">מיין: סה״כ לגבייה</option>
               <option value="totalPaid">מיין: שולם</option>
@@ -280,30 +304,6 @@ export function CollectionsManager({
           onSave={handleSavePayment}
         />
       ) : null}
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: "slate" | "emerald" | "red";
-}) {
-  const toneClass =
-    tone === "emerald"
-      ? "bg-emerald-50 text-emerald-800"
-      : tone === "red"
-        ? "bg-red-50 text-red-700"
-        : "bg-white text-slate-900";
-
-  return (
-    <div className={`rounded-2xl border border-slate-200/80 px-5 py-4 shadow-sm ${toneClass}`}>
-      <p className="text-xs font-medium opacity-70">{label}</p>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
     </div>
   );
 }

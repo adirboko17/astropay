@@ -13,6 +13,7 @@ import {
   ClientSelectorField,
   getClientNameForSave,
 } from "@/components/credentials/client-selector-field";
+import { TableRowActionsMenu, UserCardIcon } from "@/components/ui/table-row-actions-menu";
 import {
   credentialToFormData,
   EMPTY_CREDENTIAL,
@@ -913,108 +914,26 @@ function CredentialRow({
       </td>
       <DisplayCell muted>{row.notes || "—"}</DisplayCell>
       <td className="border-b border-slate-100 px-4 py-3">
-        <RowActionsMenu
+        <TableRowActionsMenu
           disabled={disabled}
           isDeleting={isDeleting}
-          onOpenClientCard={onOpenClientCard}
+          extraItems={
+            onOpenClientCard
+              ? [
+                  {
+                    label: "כרטיס לקוח",
+                    onClick: onOpenClientCard,
+                    icon: <UserCardIcon />,
+                    disabled,
+                  },
+                ]
+              : []
+          }
           onEdit={onEdit}
           onDelete={onDelete}
         />
       </td>
     </tr>
-  );
-}
-
-function RowActionsMenu({
-  disabled,
-  isDeleting,
-  onOpenClientCard,
-  onEdit,
-  onDelete,
-}: {
-  disabled: boolean;
-  isDeleting: boolean;
-  onOpenClientCard?: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  function close() {
-    setOpen(false);
-  }
-
-  return (
-    <div className="relative flex justify-center">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
-        aria-label="פעולות"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-      >
-        <span>פעולות</span>
-        <span className="text-base leading-none text-slate-400" aria-hidden="true">
-          ⋮
-        </span>
-      </button>
-
-      {open ? (
-        <>
-          <button
-            type="button"
-            aria-label="סגור תפריט"
-            className="fixed inset-0 z-10"
-            onClick={close}
-          />
-          <div
-            role="menu"
-            className="absolute end-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-          >
-            {onOpenClientCard ? (
-              <button
-                type="button"
-                role="menuitem"
-                disabled={disabled}
-                onClick={() => {
-                  close();
-                  onOpenClientCard();
-                }}
-                className="flex w-full px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                כרטיס לקוח
-              </button>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              disabled={disabled}
-              onClick={() => {
-                close();
-                onEdit();
-              }}
-              className="flex w-full px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-            >
-              ערוך
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              disabled={disabled || isDeleting}
-              onClick={() => {
-                close();
-                onDelete();
-              }}
-              className="flex w-full px-4 py-2 text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-            >
-              {isDeleting ? "מוחק..." : "מחק"}
-            </button>
-          </div>
-        </>
-      ) : null}
-    </div>
   );
 }
 
