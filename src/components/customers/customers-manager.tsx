@@ -8,6 +8,7 @@ import { createCustomer, createProject, deleteCustomer, updateCustomer } from "@
 import { CustomerFormModal } from "@/components/customers/customer-form-modal";
 import { PageHero } from "@/components/layout/page-hero";
 import { TableRowActionsMenu } from "@/components/ui/table-row-actions-menu";
+import { useSyncedState } from "@/lib/hooks/use-synced-state";
 import {
   computeCustomerBalance,
   formatCurrency,
@@ -51,7 +52,7 @@ export function CustomersManager({
   initialRecurringClients,
 }: CustomersManagerProps) {
   const router = useRouter();
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [customers, setCustomers] = useSyncedState(initialCustomers);
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [draft, setDraft] = useState<CustomerFormData>(EMPTY_CUSTOMER);
@@ -121,6 +122,11 @@ export function CustomersManager({
         setError(result.error);
         return;
       }
+
+      if ("customer" in result && result.customer) {
+        setCustomers((current) => [...current, result.customer]);
+      }
+
       setCreateOpen(false);
       setMessage(`"${draft.name}" נוסף בהצלחה`);
       router.refresh();

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function revalidateTasks() {
+  revalidatePath("/", "layout");
   revalidatePath("/tasks", "layout");
 }
 
@@ -42,13 +43,13 @@ export async function createTask(data: TaskFormData) {
     const { data: created, error } = await supabase
       .from("tasks")
       .insert(normalizeTaskInput(data))
-      .select("id")
+      .select("*")
       .single();
 
     if (error) return { error: error.message };
 
     revalidateTasks();
-    return { success: true as const, id: created.id };
+    return { success: true as const, id: created.id, task: created };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה ביצירת המשימה",
@@ -124,16 +125,20 @@ export async function createSubtask(taskId: string, title: string, assignee: str
 
   try {
     const supabase = createAdminClient();
-    const { error } = await supabase.from("task_subtasks").insert({
-      task_id: taskId,
-      title: title.trim(),
-      assignee: assignee || null,
-    });
+    const { data: created, error } = await supabase
+      .from("task_subtasks")
+      .insert({
+        task_id: taskId,
+        title: title.trim(),
+        assignee: assignee || null,
+      })
+      .select("*")
+      .single();
 
     if (error) return { error: error.message };
 
     revalidateTasks();
-    return { success: true as const };
+    return { success: true as const, subtask: created };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה בהוספת תת-המשימה",

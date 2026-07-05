@@ -14,6 +14,7 @@ import {
   getClientNameForSave,
 } from "@/components/credentials/client-selector-field";
 import { TableRowActionsMenu, UserCardIcon } from "@/components/ui/table-row-actions-menu";
+import { useSyncedState } from "@/lib/hooks/use-synced-state";
 import {
   credentialToFormData,
   EMPTY_CREDENTIAL,
@@ -57,10 +58,9 @@ export function CredentialsManager({
   initialClients = [],
 }: CredentialsManagerProps) {
   const router = useRouter();
-  const [credentials, setCredentials] =
-    useState<ClientCredential[]>(initialCredentials);
-  const [tables, setTables] = useState<CredentialTable[]>(initialTables);
-  const [clients, setClients] = useState<CredentialClient[]>(initialClients ?? []);
+  const [credentials, setCredentials] = useSyncedState(initialCredentials);
+  const [tables, setTables] = useSyncedState(initialTables);
+  const [clients, setClients] = useSyncedState(initialClients ?? []);
   const [draft, setDraft] = useState<CredentialFormData>(EMPTY_CREDENTIAL);
   const [draftClientId, setDraftClientId] = useState<string | null>(null);
   const [draftNewClientName, setDraftNewClientName] = useState("");
@@ -77,12 +77,6 @@ export function CredentialsManager({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [addModalOpen, setAddModalOpen] = useState(false);
-
-  useEffect(() => {
-    setCredentials(initialCredentials);
-    setTables(initialTables);
-    setClients(initialClients ?? []);
-  }, [initialCredentials, initialTables, initialClients]);
 
   const sortedClients = useMemo(() => sortClients(clients), [clients]);
 
@@ -213,6 +207,29 @@ export function CredentialsManager({
       if (result.error) {
         setError(result.error);
         return;
+      }
+
+      if ("credential" in result && result.credential) {
+        setCredentials((current) => [...current, result.credential]);
+      }
+
+      if (result.clientId && !clients.some((client) => client.id === result.clientId)) {
+        setClients((current) => [
+          ...current,
+          {
+            id: result.clientId!,
+            name: clientName,
+            notes: null,
+            email: null,
+            phone: null,
+            company: null,
+            status: "active",
+            total_amount_due: 0,
+            currency: "ILS",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ]);
       }
 
       resetDraft();

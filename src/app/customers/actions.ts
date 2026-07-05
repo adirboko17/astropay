@@ -40,13 +40,13 @@ export async function createCustomer(data: CustomerFormData) {
     const { data: created, error } = await supabase
       .from("credential_clients")
       .insert(normalizeCustomerInput(data))
-      .select("id")
+      .select("*")
       .single();
 
     if (error) return { error: error.message };
 
     revalidateCustomerPaths(created.id);
-    return { success: true as const, id: created.id };
+    return { success: true as const, id: created.id, customer: created };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה ביצירת הלקוח",
@@ -66,13 +66,13 @@ export async function createProject(data: CustomerFormData) {
     const { data: created, error } = await supabase
       .from("credential_clients")
       .insert({ ...normalized, total_amount_due: 0 })
-      .select("id")
+      .select("*")
       .single();
 
     if (error) return { error: error.message };
 
     revalidateCustomerPaths(created.id);
-    return { success: true as const, id: created.id };
+    return { success: true as const, id: created.id, customer: created };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה ביצירת הפרויקט",
@@ -160,14 +160,16 @@ export async function createPayment(customerId: string, data: PaymentFormData) {
 
   try {
     const supabase = createAdminClient();
-    const { error } = await supabase
+    const { data: created, error } = await supabase
       .from("customer_payments")
-      .insert(normalizePaymentInput(customerId, data));
+      .insert(normalizePaymentInput(customerId, data))
+      .select("*")
+      .single();
 
     if (error) return { error: error.message };
 
     revalidateCustomerPaths(customerId);
-    return { success: true as const };
+    return { success: true as const, payment: created };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה בהוספת התשלום",
@@ -264,14 +266,16 @@ export async function createCharge(customerId: string, data: ChargeFormData) {
 
   try {
     const supabase = createAdminClient();
-    const { error } = await supabase
+    const { data: created, error } = await supabase
       .from("customer_charges")
-      .insert(normalizeChargeInput(customerId, data));
+      .insert(normalizeChargeInput(customerId, data))
+      .select("*")
+      .single();
 
     if (error) return { error: error.message };
 
     revalidateCustomerPaths(customerId);
-    return { success: true as const };
+    return { success: true as const, charge: created };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה בהוספת החיוב",

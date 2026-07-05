@@ -19,6 +19,7 @@ import {
   type CustomerBalance,
 } from "@/lib/customers/billing";
 import { filterCustomers, sortCustomers } from "@/lib/customers/customers";
+import { useSyncedState } from "@/lib/hooks/use-synced-state";
 import type { Customer, CustomerCharge, CustomerPayment } from "@/types/database";
 
 interface CollectionsManagerProps {
@@ -44,6 +45,9 @@ export function CollectionsManager({
   initialCharges,
 }: CollectionsManagerProps) {
   const router = useRouter();
+  const [customers] = useSyncedState(initialCustomers);
+  const [payments, setPayments] = useSyncedState(initialPayments);
+  const [charges] = useSyncedState(initialCharges);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("status");
   const [payingCustomer, setPayingCustomer] = useState<Customer | null>(null);
@@ -54,15 +58,15 @@ export function CollectionsManager({
 
   const allBalances = useMemo(() => {
     const map = new Map<string, CustomerBalance>();
-    for (const customer of initialCustomers) {
-      map.set(customer.id, computeCustomerBalance(customer, initialPayments, initialCharges));
+    for (const customer of customers) {
+      map.set(customer.id, computeCustomerBalance(customer, payments, charges));
     }
     return map;
-  }, [initialCustomers, initialPayments, initialCharges]);
+  }, [customers, payments, charges]);
 
   const customersWithDue = useMemo(
-    () => initialCustomers.filter((customer) => (allBalances.get(customer.id)?.totalDue ?? 0) > 0),
-    [initialCustomers, allBalances],
+    () => customers.filter((customer) => (allBalances.get(customer.id)?.totalDue ?? 0) > 0),
+    [customers, allBalances],
   );
 
   const filtered = useMemo(
@@ -80,12 +84,12 @@ export function CollectionsManager({
 
   const customerCharges = useMemo(() => {
     if (!payingCustomer) return [];
-    return initialCharges.filter((charge) => charge.customer_id === payingCustomer.id);
-  }, [payingCustomer, initialCharges]);
+    return charges.filter((charge) => charge.customer_id === payingCustomer.id);
+  }, [payingCustomer, charges]);
 
   const sortedCustomers = useMemo(() => {
     if (sortKey === "status") {
-      return sortCustomersByCollectionStatus(filtered, initialPayments, initialCharges);
+      return sortCustomersByCollectionStatus(filtered, payments, charges);
     }
 
     return [...filtered].sort((a, b) => {
@@ -98,7 +102,7 @@ export function CollectionsManager({
       if (sortKey === "totalDue") return balanceB.totalDue - balanceA.totalDue;
       return balanceB.totalPaid - balanceA.totalPaid;
     });
-  }, [filtered, sortKey, balances, initialPayments, initialCharges]);
+  }, [filtered, sortKey, balances, payments, charges]);
 
   const totals = useMemo(
     () => computeTotals(Array.from(balances.values())),
@@ -124,6 +128,12 @@ export function CollectionsManager({
         setError(result.error);
         return;
       }
+
+      if ("payment" in result && result.payment) {
+        const created = result.payment as CustomerPayment;
+        setPayments((current) => [created, ...current]);
+      }
+
       setPayingCustomer(null);
       setMessage(`תשלום נרשם עבור "${payingCustomer.name}"`);
       router.refresh();

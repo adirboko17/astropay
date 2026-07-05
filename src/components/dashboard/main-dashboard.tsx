@@ -6,9 +6,10 @@ import type { DashboardStats, Insight } from "@/lib/dashboard/stats";
 interface MainDashboardProps {
   stats: DashboardStats;
   userName?: string;
+  openTasksSection?: React.ReactNode;
 }
 
-export function MainDashboard({ stats, userName }: MainDashboardProps) {
+export function MainDashboard({ stats, userName, openTasksSection }: MainDashboardProps) {
   const ratePercent = Math.round(stats.collections.collectionRate * 100);
   const now = new Date();
   const greeting = getGreeting(now, userName);
@@ -100,6 +101,8 @@ export function MainDashboard({ stats, userName }: MainDashboardProps) {
           href="/credentials"
         />
       </section>
+
+      {openTasksSection}
 
       {/* Insights */}
       {stats.insights.length > 0 ? (

@@ -11,6 +11,7 @@ import {
 import { CreateTableModal } from "@/components/credentials/create-table-modal";
 import { PageHero } from "@/components/layout/page-hero";
 import { TableRowActionsMenu } from "@/components/ui/table-row-actions-menu";
+import { useSyncedState } from "@/lib/hooks/use-synced-state";
 import {
   buildTableListItems,
   formatTableDate,
@@ -30,8 +31,8 @@ export function CredentialsTablesHome({
   initialCredentials,
 }: CredentialsTablesHomeProps) {
   const router = useRouter();
-  const [tables, setTables] = useState(initialTables);
-  const [credentials] = useState(initialCredentials);
+  const [tables, setTables] = useSyncedState(initialTables);
+  const [credentials] = useSyncedState(initialCredentials);
   const [searchQuery, setSearchQuery] = useState("");
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -42,10 +43,6 @@ export function CredentialsTablesHome({
   const [deletingTable, setDeletingTable] = useState<TableListItem | null>(
     null,
   );
-
-  useEffect(() => {
-    setTables(initialTables);
-  }, [initialTables]);
 
   const tableItems = useMemo(() => {
     const items = buildTableListItems(tables, credentials);
@@ -210,6 +207,17 @@ export function CredentialsTablesHome({
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onCreated={(table) => {
+          setTables((current) => [
+            ...current,
+            {
+              id: table.id,
+              name: table.name,
+              sort_order: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              last_viewed_at: null,
+            },
+          ]);
           router.push(`/credentials/${table.id}`);
           router.refresh();
         }}

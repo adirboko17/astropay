@@ -26,6 +26,7 @@ import { ChargeFormModal } from "@/components/customers/charge-form-modal";
 import { CustomerCredentialModal } from "@/components/customers/customer-credential-modal";
 import { CustomerFormModal } from "@/components/customers/customer-form-modal";
 import { PaymentFormModal } from "@/components/customers/payment-form-modal";
+import { useSyncedState } from "@/lib/hooks/use-synced-state";
 import {
   computeChargeBalance,
   computeCustomerBalance,
@@ -94,10 +95,10 @@ export function CustomerDetail({
   unlinkedRecurringClients,
 }: CustomerDetailProps) {
   const router = useRouter();
-  const [customer, setCustomer] = useState<Customer>(initialCustomer);
-  const [credentials, setCredentials] = useState<ClientCredential[]>(initialCredentials);
-  const [payments, setPayments] = useState<CustomerPayment[]>(initialPayments);
-  const [charges, setCharges] = useState<CustomerCharge[]>(initialCharges);
+  const [customer, setCustomer] = useSyncedState(initialCustomer);
+  const [credentials, setCredentials] = useSyncedState(initialCredentials);
+  const [payments, setPayments] = useSyncedState(initialPayments);
+  const [charges, setCharges] = useSyncedState(initialCharges);
 
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileDraft, setProfileDraft] = useState<CustomerFormData>(
@@ -225,11 +226,32 @@ export function CustomerDetail({
           notify(null, result.error);
           return;
         }
+
+        setCredentials((current) =>
+          current.map((item) =>
+            item.id === editingCredentialId
+              ? {
+                  ...item,
+                  client_name: customer.name,
+                  login_email: credentialDraft.login_email.trim() || null,
+                  login_username: credentialDraft.login_username.trim() || null,
+                  password: credentialDraft.password || null,
+                  website_url: credentialDraft.website_url.trim() || null,
+                  notes: credentialDraft.notes.trim() || null,
+                  table_id: tableId,
+                }
+              : item,
+          ),
+        );
       } else {
         const result = await createCredential(dataWithName, tableId, customer.id);
         if (result.error) {
           notify(null, result.error);
           return;
+        }
+
+        if ("credential" in result && result.credential) {
+          setCredentials((current) => [...current, result.credential]);
         }
       }
 
@@ -296,6 +318,25 @@ export function CustomerDetail({
         return;
       }
 
+      if (chargeModalMode === "edit" && editingChargeId) {
+        setCharges((current) =>
+          current.map((item) =>
+            item.id === editingChargeId
+              ? {
+                  ...item,
+                  title: chargeDraft.title.trim(),
+                  amount: Number.parseFloat(chargeDraft.amount) || 0,
+                  currency: chargeDraft.currency.trim() || "ILS",
+                  notes: chargeDraft.notes.trim() || null,
+                }
+              : item,
+          ),
+        );
+      } else if ("charge" in result && result.charge) {
+        const created = result.charge as CustomerCharge;
+        setCharges((current) => [created, ...current]);
+      }
+
       setChargeModalMode(null);
       notify("החיוב נשמר", null);
       router.refresh();
@@ -359,6 +400,27 @@ export function CustomerDetail({
       if (result.error) {
         notify(null, result.error);
         return;
+      }
+
+      if (paymentModalMode === "edit" && editingPaymentId) {
+        setPayments((current) =>
+          current.map((item) =>
+            item.id === editingPaymentId
+              ? {
+                  ...item,
+                  amount: Number.parseFloat(paymentDraft.amount) || 0,
+                  currency: paymentDraft.currency.trim() || "ILS",
+                  paid_at: paymentDraft.paid_at,
+                  method: paymentDraft.method.trim() || null,
+                  note: paymentDraft.note.trim() || null,
+                  charge_id: paymentDraft.charge_id || null,
+                }
+              : item,
+          ),
+        );
+      } else if ("payment" in result && result.payment) {
+        const created = result.payment as CustomerPayment;
+        setPayments((current) => [created, ...current]);
       }
 
       setPaymentModalMode(null);

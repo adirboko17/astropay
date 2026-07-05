@@ -190,20 +190,24 @@ export async function createCredential(
 
     const tableName = await resolveTableName(tableId);
     const supabase = createAdminClient();
-    const { error } = await supabase.from("client_credentials").insert(
-      normalizeCredentialInput(
-        data,
-        tableId,
-        tableName,
-        client.id,
-        client.name,
-      ),
-    );
+    const { data: created, error } = await supabase
+      .from("client_credentials")
+      .insert(
+        normalizeCredentialInput(
+          data,
+          tableId,
+          tableName,
+          client.id,
+          client.name,
+        ),
+      )
+      .select("*")
+      .single();
 
     if (error) return { error: error.message };
 
     revalidatePath("/credentials", "layout");
-    return { success: true, clientId: client.id };
+    return { success: true, clientId: client.id, credential: created };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "שגיאה ביצירת הרשומה",

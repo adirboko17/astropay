@@ -19,6 +19,7 @@ import { PageHero } from "@/components/layout/page-hero";
 import { TaskFormModal, TASK_ASSIGNEES } from "@/components/tasks/task-form-modal";
 import { TableRowActionsMenu } from "@/components/ui/table-row-actions-menu";
 import { isBillingCustomer } from "@/lib/customers/billing";
+import { useSyncedState } from "@/lib/hooks/use-synced-state";
 import type {
   Customer,
   CustomerCharge,
@@ -76,6 +77,8 @@ export function TasksManager({
   charges,
 }: TasksManagerProps) {
   const router = useRouter();
+  const [tasks, setTasks] = useSyncedState(initialTasks);
+  const [subtasks, setSubtasks] = useSyncedState(initialSubtasks);
 
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
@@ -117,18 +120,18 @@ export function TasksManager({
 
   const subtasksByTask = useMemo(() => {
     const map = new Map<string, TaskSubtask[]>();
-    for (const subtask of initialSubtasks) {
+    for (const subtask of subtasks) {
       const list = map.get(subtask.task_id) ?? [];
       list.push(subtask);
       map.set(subtask.task_id, list);
     }
     return map;
-  }, [initialSubtasks]);
+  }, [subtasks]);
 
   const filteredTasks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return initialTasks.filter((task) => {
+    return tasks.filter((task) => {
       if (categoryFilter !== "all" && task.category !== categoryFilter) return false;
       if (statusFilter !== "all" && task.status !== statusFilter) return false;
       if (assigneeFilter !== "all") {
@@ -149,10 +152,10 @@ export function TasksManager({
 
       return true;
     });
-  }, [initialTasks, categoryFilter, statusFilter, assigneeFilter, searchQuery, customerById, subtasksByTask]);
+  }, [tasks, categoryFilter, statusFilter, assigneeFilter, searchQuery, customerById, subtasksByTask]);
 
-  const openCount = initialTasks.filter((task) => task.status === "open").length;
-  const doneCount = initialTasks.length - openCount;
+  const openCount = tasks.filter((task) => task.status === "open").length;
+  const doneCount = tasks.length - openCount;
 
   function markBusy(id: string, busy: boolean) {
     setBusyIds((current) => {
@@ -198,6 +201,29 @@ export function TasksManager({
         return;
       }
 
+      if (editingTask) {
+        setTasks((current) =>
+          current.map((task) =>
+            task.id === editingTask.id
+              ? {
+                  ...task,
+                  title: draft.title.trim(),
+                  description: draft.description.trim() || null,
+                  category: draft.category,
+                  customer_id: draft.category === "other" ? null : draft.customer_id || null,
+                  context_label:
+                    draft.category === "other" ? draft.context_label.trim() || null : null,
+                  assignee: draft.assignee || null,
+                  due_date: draft.due_date || null,
+                }
+              : task,
+          ),
+        );
+      } else if ("task" in result && result.task) {
+        const created = result.task as Task;
+        setTasks((current) => [created, ...current]);
+      }
+
       setCreateOpen(false);
       setEditingTask(null);
       router.refresh();
@@ -210,8 +236,22 @@ export function TasksManager({
 
   async function handleToggleTask(task: Task) {
     markBusy(task.id, true);
-    const result = await setTaskStatus(task.id, task.status === "done" ? "open" : "done");
+    const nextStatus = task.status === "done" ? "open" : "done";
+    const result = await setTaskStatus(task.id, nextStatus);
     if (result.error) setError(result.error);
+    else {
+      setTasks((current) =>
+        current.map((item) =>
+          item.id === task.id
+            ? {
+                ...item,
+                status: nextStatus,
+                completed_at: nextStatus === "done" ? new Date().toISOString() : null,
+              }
+            : item,
+        ),
+      );
+    }
     markBusy(task.id, false);
     router.refresh();
   }
@@ -221,6 +261,10 @@ export function TasksManager({
     markBusy(task.id, true);
     const result = await deleteTask(task.id);
     if (result.error) setError(result.error);
+    else {
+      setTasks((current) => current.filter((item) => item.id !== task.id));
+      setSubtasks((current) => current.filter((item) => item.task_id !== task.id));
+    }
     markBusy(task.id, false);
     router.refresh();
   }
@@ -235,6 +279,9 @@ export function TasksManager({
       setError(result.error);
     } else {
       setNewSubtaskTitles((current) => ({ ...current, [taskId]: "" }));
+      if ("subtask" in result && result.subtask) {
+        setSubtasks((current) => [...current, result.subtask]);
+      }
     }
     markBusy(taskId, false);
     router.refresh();
@@ -242,11 +289,22 @@ export function TasksManager({
 
   async function handleToggleSubtask(subtask: TaskSubtask) {
     markBusy(subtask.id, true);
-    const result = await setSubtaskStatus(
-      subtask.id,
-      subtask.status === "done" ? "open" : "done",
-    );
+    const nextStatus = subtask.status === "done" ? "open" : "done";
+    const result = await setSubtaskStatus(subtask.id, nextStatus);
     if (result.error) setError(result.error);
+    else {
+      setSubtasks((current) =>
+        current.map((item) =>
+          item.id === subtask.id
+            ? {
+                ...item,
+                status: nextStatus,
+                completed_at: nextStatus === "done" ? new Date().toISOString() : null,
+              }
+            : item,
+        ),
+      );
+    }
     markBusy(subtask.id, false);
     router.refresh();
   }
@@ -257,6 +315,17 @@ export function TasksManager({
     if (result.error) {
       setError(result.error);
     } else {
+      setSubtasks((current) =>
+        current.map((item) =>
+          item.id === subtask.id
+            ? {
+                ...item,
+                title: subtaskEditDraft.title.trim(),
+                assignee: subtaskEditDraft.assignee || null,
+              }
+            : item,
+        ),
+      );
       setEditingSubtaskId(null);
     }
     markBusy(subtask.id, false);
@@ -267,6 +336,7 @@ export function TasksManager({
     markBusy(subtask.id, true);
     const result = await deleteSubtask(subtask.id);
     if (result.error) setError(result.error);
+    else setSubtasks((current) => current.filter((item) => item.id !== subtask.id));
     markBusy(subtask.id, false);
     router.refresh();
   }
@@ -284,9 +354,9 @@ export function TasksManager({
   ];
 
   const assigneeCounts = useMemo(() => {
-    const counts: Record<AssigneeFilter, number> = { all: initialTasks.length, אדיר: 0, איתי: 0 };
+    const counts: Record<AssigneeFilter, number> = { all: tasks.length, אדיר: 0, איתי: 0 };
 
-    for (const task of initialTasks) {
+    for (const task of tasks) {
       const taskSubtasks = subtasksByTask.get(task.id) ?? [];
       const assignees = new Set<string>();
 
@@ -303,7 +373,7 @@ export function TasksManager({
     }
 
     return counts;
-  }, [initialTasks, subtasksByTask]);
+  }, [tasks, subtasksByTask]);
 
   return (
     <div className="space-y-5">
@@ -314,7 +384,7 @@ export function TasksManager({
         metrics={[
           { label: "משימות פתוחות", value: String(openCount) },
           { label: "הושלמו", value: String(doneCount) },
-          { label: "סה״כ", value: String(initialTasks.length) },
+          { label: "סה״כ", value: String(tasks.length) },
         ]}
       >
         <button
@@ -407,10 +477,10 @@ export function TasksManager({
         {filteredTasks.length === 0 ? (
           <div className="px-5 py-16 text-center">
             <p className="text-sm font-medium text-slate-600">
-              {initialTasks.length === 0 ? "עדיין אין משימות" : "לא נמצאו משימות מתאימות לסינון"}
+              {tasks.length === 0 ? "עדיין אין משימות" : "לא נמצאו משימות מתאימות לסינון"}
             </p>
             <p className="mt-1 text-sm text-slate-400">
-              {initialTasks.length === 0
+              {tasks.length === 0
                 ? "לחץ על ״+ משימה חדשה״ כדי להתחיל"
                 : "נסה לשנות את הסינון או את החיפוש"}
             </p>
@@ -454,6 +524,30 @@ export function TasksManager({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${CATEGORY_BADGE[task.category] ?? CATEGORY_BADGE.other}`}
+                              >
+                                {CATEGORY_LABEL[task.category] ?? task.category}
+                              </span>
+
+                              {linkedLabel ? (
+                                customer ? (
+                                  <Link
+                                    href={`/customers/${customer.id}`}
+                                    className="inline-flex max-w-[220px] items-center gap-1 truncate text-sm font-medium text-blue-700 transition hover:text-blue-900 hover:underline"
+                                  >
+                                    <LinkIcon />
+                                    <span className="truncate">{linkedLabel}</span>
+                                  </Link>
+                                ) : (
+                                  <span className="inline-flex max-w-[220px] truncate text-sm font-medium text-slate-700">
+                                    {linkedLabel}
+                                  </span>
+                                )
+                              ) : null}
+                            </div>
+
                             <h3
                               className={`text-base font-semibold leading-snug sm:text-[17px] ${
                                 isDone ? "text-slate-400 line-through" : "text-slate-900"
@@ -462,30 +556,8 @@ export function TasksManager({
                               {task.title}
                             </h3>
 
-                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span
-                                  className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${CATEGORY_BADGE[task.category] ?? CATEGORY_BADGE.other}`}
-                                >
-                                  {CATEGORY_LABEL[task.category] ?? task.category}
-                                </span>
-
-                                {linkedLabel ? (
-                                  customer ? (
-                                    <Link
-                                      href={`/customers/${customer.id}`}
-                                      className="inline-flex max-w-[220px] items-center gap-1 truncate rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100"
-                                    >
-                                      <LinkIcon />
-                                      <span className="truncate">{linkedLabel}</span>
-                                    </Link>
-                                  ) : (
-                                    <span className="inline-flex max-w-[220px] items-center truncate rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200">
-                                      {linkedLabel}
-                                    </span>
-                                  )
-                                ) : null}
-
                                 {task.assignee ? (
                                   <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-900 ring-1 ring-amber-100">
                                     <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-200 text-[9px] font-bold text-amber-900">
