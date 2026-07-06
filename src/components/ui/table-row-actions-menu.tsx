@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export interface TableRowActionsMenuItem {
   label: string;
@@ -22,6 +23,10 @@ interface TableRowActionsMenuProps {
   onOpenChange?: (open: boolean) => void;
 }
 
+const MENU_WIDTH = 176;
+const MENU_ESTIMATED_HEIGHT = 160;
+const VIEWPORT_PADDING = 8;
+
 export function TableRowActionsMenu({
   onEdit,
   onDelete,
@@ -33,7 +38,11 @@ export function TableRowActionsMenu({
   open,
   onOpenChange,
 }: TableRowActionsMenuProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [internalOpen, setInternalOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(
+    null,
+  );
   const isControlled = open !== undefined;
   const menuOpen = isControlled ? open : internalOpen;
 
@@ -66,9 +75,49 @@ export function TableRowActionsMenu({
     },
   ];
 
+  useEffect(() => {
+    if (!menuOpen || !buttonRef.current) {
+      setMenuPosition(null);
+      return;
+    }
+
+    function updatePosition() {
+      const button = buttonRef.current;
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUpward =
+        spaceBelow < MENU_ESTIMATED_HEIGHT &&
+        rect.top > MENU_ESTIMATED_HEIGHT;
+
+      const top = openUpward
+        ? rect.top - MENU_ESTIMATED_HEIGHT - 4
+        : rect.bottom + 4;
+
+      let left = rect.right - MENU_WIDTH;
+      left = Math.max(
+        VIEWPORT_PADDING,
+        Math.min(left, window.innerWidth - MENU_WIDTH - VIEWPORT_PADDING),
+      );
+
+      setMenuPosition({ top, left });
+    }
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [menuOpen, menuItems.length]);
+
   return (
     <div className="relative flex justify-center">
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled}
         onClick={() => setMenuOpen(!menuOpen)}
@@ -80,43 +129,47 @@ export function TableRowActionsMenu({
         <DotsIcon />
       </button>
 
-      {menuOpen ? (
-        <>
-          <button
-            type="button"
-            aria-label="סגור תפריט"
-            className="fixed inset-0 z-10"
-            onClick={close}
-          />
-          <div
-            role="menu"
-            className="absolute end-0 top-full z-20 mt-1 min-w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-          >
-            {menuItems.map((item) => (
+      {menuOpen && menuPosition && typeof document !== "undefined"
+        ? createPortal(
+            <>
               <button
-                key={item.label}
                 type="button"
-                role="menuitem"
-                disabled={item.disabled}
-                onClick={() => {
-                  close();
-                  item.onClick();
-                }}
-                className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-sm transition disabled:opacity-50 ${
-                  item.variant === "danger"
-                    ? "text-red-600 hover:bg-red-50"
-                    : "text-slate-700 hover:bg-slate-50"
-                }`}
+                aria-label="סגור תפריט"
+                className="fixed inset-0 z-[200]"
+                onClick={close}
+              />
+              <div
+                role="menu"
+                style={{ top: menuPosition.top, left: menuPosition.left }}
+                className="fixed z-[201] min-w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
               >
-                {item.icon ? (
-                  <span className="shrink-0 text-current opacity-70">{item.icon}</span>
-                ) : null}
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      ) : null}
+                {menuItems.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    role="menuitem"
+                    disabled={item.disabled}
+                    onClick={() => {
+                      close();
+                      item.onClick();
+                    }}
+                    className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-sm transition disabled:opacity-50 ${
+                      item.variant === "danger"
+                        ? "text-red-600 hover:bg-red-50"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {item.icon ? (
+                      <span className="shrink-0 text-current opacity-70">{item.icon}</span>
+                    ) : null}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

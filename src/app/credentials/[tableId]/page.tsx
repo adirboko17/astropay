@@ -3,7 +3,9 @@ import { Suspense } from "react";
 
 import { markCredentialTableViewed } from "@/app/credentials/actions";
 import { CredentialsManager } from "@/components/credentials/credentials-manager";
+import { EnvCredentialsManager } from "@/components/credentials/env-credentials-manager";
 import { AppShell } from "@/components/layout/app-shell";
+import { isEnvTable } from "@/lib/credentials/env-table";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ClientCredential, CredentialClient, CredentialTable } from "@/types/database";
 
@@ -96,12 +98,20 @@ export default async function CredentialTablePage({ params }: TablePageProps) {
             </div>
           }
         >
-          <CredentialsManager
-            table={table}
-            initialCredentials={credentials}
-            initialTables={tables}
-            initialClients={clients}
-          />
+          {isEnvTable(table.name) ? (
+            <EnvCredentialsManager
+              table={table}
+              initialCredentials={credentials}
+              initialClients={clients}
+            />
+          ) : (
+            <CredentialsManager
+              table={table}
+              initialCredentials={credentials}
+              initialTables={tables}
+              initialClients={clients}
+            />
+          )}
         </Suspense>
       )}
     </AppShell>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import type { CredentialFormData } from "@/lib/credentials/constants";
+import { isEnvTable } from "@/lib/credentials/env-table";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 async function resolveTableName(tableId: string) {
@@ -98,6 +99,14 @@ async function resolveClient(
   return { id: created.id, name: created.name } as const;
 }
 
+function normalizeNotes(notes: string, tableName: string) {
+  if (isEnvTable(tableName)) {
+    return notes.length > 0 ? notes : null;
+  }
+
+  return notes.trim() || null;
+}
+
 function normalizeCredentialInput(
   data: CredentialFormData,
   tableId: string,
@@ -116,7 +125,7 @@ function normalizeCredentialInput(
     password: data.password || null,
     dashboard_url: null,
     website_url: data.website_url.trim() || null,
-    notes: data.notes.trim() || null,
+    notes: normalizeNotes(data.notes, tableName),
   };
 }
 
@@ -227,6 +236,12 @@ export async function updateCredential(
 
     const supabase = createAdminClient();
 
+    let tableName: string | null = null;
+
+    if (tableId) {
+      tableName = await resolveTableName(tableId);
+    }
+
     const updatePayload: {
       client_id: string;
       client_name: string;
@@ -244,11 +259,10 @@ export async function updateCredential(
       login_username: data.login_username.trim() || null,
       password: data.password || null,
       website_url: data.website_url.trim() || null,
-      notes: data.notes.trim() || null,
+      notes: normalizeNotes(data.notes, tableName ?? ""),
     };
 
-    if (tableId) {
-      const tableName = await resolveTableName(tableId);
+    if (tableId && tableName) {
       updatePayload.table_id = tableId;
       updatePayload.platform = tableName;
     }

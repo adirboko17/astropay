@@ -16,6 +16,9 @@ export function getPlatformBadgeClass(platform: string) {
   if (value.includes("cloudflare")) {
     return "bg-orange-50 text-orange-800 ring-1 ring-orange-100";
   }
+  if (value === "env") {
+    return "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100";
+  }
 
   return "bg-blue-50 text-blue-800 ring-1 ring-blue-100";
 }
