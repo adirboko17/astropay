@@ -20,7 +20,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
       <div className="border-b border-slate-100 px-6 py-5">
         <h2 className="text-lg font-semibold text-slate-900">הוראות קבע</h2>
         <p className="mt-1 text-sm text-slate-500">
-          רשימת הוראות קבע מ-PayPlus — הנתונים יופיעו לאחר סנכרון
+          רשימת הוראות קבע מ-PayPlus — לחץ «סנכרון מ-PayPlus» לעדכון מהמערכת
         </p>
       </div>
 

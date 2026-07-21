@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { CredentialsTablesHome } from "@/components/credentials/credentials-tables-home";
-import { AppShell } from "@/components/layout/app-shell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ClientCredential, CredentialTable } from "@/types/database";
 
@@ -54,7 +53,7 @@ export default async function CredentialsPage({ searchParams }: CredentialsPageP
   }
 
   return (
-    <AppShell wide>
+    <>
       {loadError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">לא ניתן לטעון נתונים</p>
@@ -74,6 +73,6 @@ export default async function CredentialsPage({ searchParams }: CredentialsPageP
           />
         </Suspense>
       )}
-    </AppShell>
+    </>
   );
 }

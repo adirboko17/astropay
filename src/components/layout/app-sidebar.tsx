@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { logoutAction } from "@/app/login/actions";
+import { startNavigationProgress } from "@/components/layout/navigation-progress";
 
 const navItems = [
   {
@@ -112,7 +113,11 @@ export function AppSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setMobileOpen(false)}
+                prefetch={true}
+                onClick={() => {
+                  setMobileOpen(false);
+                  startNavigationProgress();
+                }}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                   active
                     ? "border-s-2 border-blue-500 bg-slate-800 text-white"

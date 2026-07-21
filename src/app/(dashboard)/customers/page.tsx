@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 
 import { CustomersManager } from "@/components/customers/customers-manager";
-import { AppShell } from "@/components/layout/app-shell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   ClientCredential,
@@ -13,7 +12,7 @@ import type {
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectsPage() {
+export default async function CustomersPage() {
   let customers: Customer[] = [];
   let credentials: Pick<ClientCredential, "client_id">[] = [];
   let payments: CustomerPayment[] = [];
@@ -44,11 +43,11 @@ export default async function ProjectsPage() {
     charges = chargesResult.data ?? [];
     recurringClients = recurringResult.data ?? [];
   } catch (error) {
-    loadError = error instanceof Error ? error.message : "שגיאה בטעינת הפרויקטים";
+    loadError = error instanceof Error ? error.message : "שגיאה בטעינת הלקוחות";
   }
 
   return (
-    <AppShell>
+    <>
       {loadError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">לא ניתן לטעון נתונים</p>
@@ -58,12 +57,12 @@ export default async function ProjectsPage() {
         <Suspense
           fallback={
             <div className="rounded-2xl border border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
-              טוען פרויקטים...
+              טוען לקוחות...
             </div>
           }
         >
           <CustomersManager
-            mode="projects"
+            mode="customers"
             initialCustomers={customers}
             initialCredentials={credentials}
             initialPayments={payments}
@@ -72,6 +71,6 @@ export default async function ProjectsPage() {
           />
         </Suspense>
       )}
-    </AppShell>
+    </>
   );
 }

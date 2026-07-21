@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { CustomerDetail } from "@/components/customers/customer-detail";
-import { AppShell } from "@/components/layout/app-shell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   ClientCredential,
@@ -87,7 +86,7 @@ export default async function CustomerPage({ params }: CustomerPageProps) {
   }
 
   return (
-    <AppShell wide>
+    <>
       {loadError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">לא ניתן לטעון נתונים</p>
@@ -112,6 +111,6 @@ export default async function CustomerPage({ params }: CustomerPageProps) {
           />
         </Suspense>
       )}
-    </AppShell>
+    </>
   );
 }

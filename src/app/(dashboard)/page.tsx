@@ -1,6 +1,5 @@
 import { DashboardOpenTasks } from "@/components/dashboard/dashboard-open-tasks";
 import { MainDashboard } from "@/components/dashboard/main-dashboard";
-import { AppShell } from "@/components/layout/app-shell";
 import { getUserAssignee, getUserDisplayName } from "@/lib/auth/user-names";
 import { computeDashboardStats } from "@/lib/dashboard/stats";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -21,8 +20,9 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const authClient = await createClient();
   const {
-    data: { user },
-  } = await authClient.auth.getUser();
+    data: { session },
+  } = await authClient.auth.getSession();
+  const user = session?.user;
   const userName = getUserDisplayName(user?.email) ?? undefined;
   const assignee = getUserAssignee(user?.email);
 
@@ -86,7 +86,7 @@ export default async function HomePage() {
   );
 
   return (
-    <AppShell>
+    <>
       {loadError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">לא ניתן לטעון נתונים</p>
@@ -110,6 +110,6 @@ export default async function HomePage() {
           }
         />
       )}
-    </AppShell>
+    </>
   );
 }

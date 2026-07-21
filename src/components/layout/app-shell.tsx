@@ -1,11 +1,18 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+
 import { AppSidebar } from "@/components/layout/app-sidebar";
 
 interface AppShellProps {
-  wide?: boolean;
   children: React.ReactNode;
 }
 
-export function AppShell({ wide = false, children }: AppShellProps) {
+const WIDE_PATH_MATCHERS = [/^\/credentials(\/|$)/, /^\/customers\/[^/]+$/];
+
+export function AppShell({ children }: AppShellProps) {
+  const pathname = usePathname();
+  const wide = WIDE_PATH_MATCHERS.some((pattern) => pattern.test(pathname));
   const contentClass = wide ? "max-w-none" : "max-w-7xl";
 
   return (

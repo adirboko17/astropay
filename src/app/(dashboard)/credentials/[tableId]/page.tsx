@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { markCredentialTableViewed } from "@/app/credentials/actions";
 import { CredentialsManager } from "@/components/credentials/credentials-manager";
 import { EnvCredentialsManager } from "@/components/credentials/env-credentials-manager";
-import { AppShell } from "@/components/layout/app-shell";
 import { isEnvTable } from "@/lib/credentials/env-table";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ClientCredential, CredentialClient, CredentialTable } from "@/types/database";
@@ -84,7 +83,7 @@ export default async function CredentialTablePage({ params }: TablePageProps) {
   await markCredentialTableViewed(tableId);
 
   return (
-    <AppShell wide>
+    <>
       {loadError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">לא ניתן לטעון נתונים</p>
@@ -114,6 +113,6 @@ export default async function CredentialTablePage({ params }: TablePageProps) {
           )}
         </Suspense>
       )}
-    </AppShell>
+    </>
   );
 }
