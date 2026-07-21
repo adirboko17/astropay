@@ -30,6 +30,7 @@ export async function syncPayPlusRecurringClients(): Promise<SyncResult> {
       synced_count: 0,
       created_count: 0,
       updated_count: 0,
+      charges_synced_count: 0,
       errors,
     };
   }
@@ -66,6 +67,7 @@ export async function syncPayPlusRecurringClients(): Promise<SyncResult> {
     synced_count: createdCount + updatedCount,
     created_count: createdCount,
     updated_count: updatedCount,
+    charges_synced_count: 0,
     errors,
   };
 }

@@ -2,6 +2,7 @@ export interface SyncResult {
   synced_count: number;
   created_count: number;
   updated_count: number;
+  charges_synced_count: number;
   errors: SyncError[];
 }
 
@@ -15,6 +16,13 @@ export interface PayPlusRecurringListResponse {
   pages?: number;
   count?: number;
 }
+
+export interface PayPlusRecurringChargeListResponse {
+  data?: PayPlusRecurringCharge[];
+  count?: number;
+}
+
+export type PayPlusRecurringCharge = Record<string, unknown>;
 
 export type PayPlusRecurringPayment = Record<string, unknown>;
 

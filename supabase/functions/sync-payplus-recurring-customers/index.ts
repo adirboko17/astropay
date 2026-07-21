@@ -1,14 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-import { fetchActiveRecurringPayments } from "./payplus-client.ts";
+import { mapPayPlusChargeToCheckRow } from "./charge-sync.ts";
+import { fetchActiveRecurringPayments, fetchRecurringCharges } from "./payplus-client.ts";
 import { mapPayPlusRecurringToClient } from "./mapper.ts";
 import type { RecurringClientUpsertRow, SyncError, SyncResult } from "./types.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 const UPSERT_BATCH_SIZE = 100;
@@ -23,6 +24,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    assertAuthorized(req);
+
     const payplusConfig = getPayPlusConfig();
     const supabase = createServiceRoleClient();
 
@@ -40,47 +43,47 @@ Deno.serve(async (req: Request) => {
       if (row) rows.push(row);
     }
 
-    if (rows.length === 0) {
-      return jsonResponse({
-        synced_count: 0,
-        created_count: 0,
-        updated_count: 0,
-        errors,
-      } satisfies SyncResult);
-    }
-
-    const recurringUids = rows.map((row) => row.payplus_recurring_uid);
-    const existingUids = await loadExistingRecurringUids(supabase, recurringUids);
-
     let createdCount = 0;
     let updatedCount = 0;
 
-    for (let index = 0; index < rows.length; index += UPSERT_BATCH_SIZE) {
-      const batch = rows.slice(index, index + UPSERT_BATCH_SIZE);
+    if (rows.length > 0) {
+      const recurringUids = rows.map((row) => row.payplus_recurring_uid);
+      const existingUids = await loadExistingRecurringUids(supabase, recurringUids);
 
-      const { error: upsertError } = await supabase
-        .from("recurring_clients")
-        .upsert(batch, { onConflict: "payplus_recurring_uid" });
+      for (let index = 0; index < rows.length; index += UPSERT_BATCH_SIZE) {
+        const batch = rows.slice(index, index + UPSERT_BATCH_SIZE);
 
-      if (upsertError) {
-        errors.push({ message: `Database upsert failed: ${upsertError.message}` });
-        continue;
-      }
+        const { error: upsertError } = await supabase
+          .from("recurring_clients")
+          .upsert(batch, { onConflict: "payplus_recurring_uid" });
 
-      for (const row of batch) {
-        if (existingUids.has(row.payplus_recurring_uid)) {
-          updatedCount += 1;
-        } else {
-          createdCount += 1;
-          existingUids.add(row.payplus_recurring_uid);
+        if (upsertError) {
+          errors.push({ message: `Database upsert failed: ${upsertError.message}` });
+          continue;
+        }
+
+        for (const row of batch) {
+          if (existingUids.has(row.payplus_recurring_uid)) {
+            updatedCount += 1;
+          } else {
+            createdCount += 1;
+            existingUids.add(row.payplus_recurring_uid);
+          }
         }
       }
     }
+
+    const chargesSyncedCount = await syncAllRecurringCharges(
+      supabase,
+      payplusConfig,
+      errors,
+    );
 
     return jsonResponse({
       synced_count: createdCount + updatedCount,
       created_count: createdCount,
       updated_count: updatedCount,
+      charges_synced_count: chargesSyncedCount,
       errors,
     } satisfies SyncResult);
   } catch (error) {
@@ -94,10 +97,136 @@ Deno.serve(async (req: Request) => {
       synced_count: 0,
       created_count: 0,
       updated_count: 0,
+      charges_synced_count: 0,
       errors: [{ message }],
-    } satisfies SyncResult, 500);
+    } satisfies SyncResult, error instanceof UnauthorizedError ? 401 : 500);
   }
 });
+
+class UnauthorizedError extends Error {
+  constructor() {
+    super("Unauthorized");
+    this.name = "UnauthorizedError";
+  }
+}
+
+function assertAuthorized(req: Request) {
+  const cronSecret = Deno.env.get("PAYPLUS_CRON_SECRET");
+  const headerSecret = req.headers.get("x-cron-secret");
+
+  if (cronSecret && headerSecret && headerSecret === cronSecret) {
+    return;
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return;
+  }
+
+  throw new UnauthorizedError();
+}
+
+async function syncAllRecurringCharges(
+  supabase: ReturnType<typeof createClient>,
+  payplusConfig: ReturnType<typeof getPayPlusConfig>,
+  errors: SyncError[],
+): Promise<number> {
+  const { data: clients, error } = await supabase
+    .from("recurring_clients")
+    .select("id, payplus_recurring_uid")
+    .not("payplus_recurring_uid", "is", null);
+
+  if (error) {
+    errors.push({ message: `Failed to load recurring clients: ${error.message}` });
+    return 0;
+  }
+
+  let synced = 0;
+
+  for (const client of clients ?? []) {
+    const recurringUid = client.payplus_recurring_uid;
+    if (!recurringUid) continue;
+
+    try {
+      const charges = await fetchRecurringCharges(payplusConfig, recurringUid);
+      const chargeRows = charges
+        .map((charge) =>
+          mapPayPlusChargeToCheckRow(charge, client.id, recurringUid)
+        )
+        .filter((row): row is NonNullable<typeof row> => row !== null);
+
+      if (chargeRows.length === 0) continue;
+
+      const { error: upsertError } = await supabase
+        .from("recurring_charge_checks")
+        .upsert(chargeRows, { onConflict: "payplus_charge_uid" });
+
+      if (upsertError) {
+        errors.push({
+          payplus_recurring_uid: recurringUid,
+          message: `Charge upsert failed: ${upsertError.message}`,
+        });
+        continue;
+      }
+
+      synced += chargeRows.length;
+      await updateClientChargeSummary(supabase, client.id, chargeRows);
+    } catch (chargeError) {
+      errors.push({
+        payplus_recurring_uid: recurringUid,
+        message: chargeError instanceof Error
+          ? chargeError.message
+          : "Charge sync failed",
+      });
+    }
+  }
+
+  return synced;
+}
+
+async function updateClientChargeSummary(
+  supabase: ReturnType<typeof createClient>,
+  clientId: string,
+  chargeRows: Array<{
+    status: string;
+    failure_reason: string | null;
+    charged_at: string | null;
+  }>,
+) {
+  const successRows = chargeRows
+    .filter((row) => row.status === "success")
+    .sort((a, b) => (b.charged_at ?? "").localeCompare(a.charged_at ?? ""));
+
+  const failedRows = chargeRows
+    .filter((row) => row.status === "failed")
+    .sort((a, b) => (b.charged_at ?? "").localeCompare(a.charged_at ?? ""));
+
+  const latestSuccess = successRows[0];
+  const latestFailed = failedRows[0];
+
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthSuccess = chargeRows.some(
+    (row) => row.status === "success" && row.charged_at?.startsWith(monthKey),
+  );
+  const monthFailed = chargeRows.some(
+    (row) => row.status === "failed" && row.charged_at?.startsWith(monthKey),
+  );
+
+  let currentMonthStatus = "unknown";
+  if (monthFailed) currentMonthStatus = "failed";
+  else if (monthSuccess) currentMonthStatus = "charged";
+
+  await supabase
+    .from("recurring_clients")
+    .update({
+      current_month_status: currentMonthStatus,
+      last_successful_charge_at: latestSuccess?.charged_at ?? null,
+      last_failed_charge_at: latestFailed?.charged_at ?? null,
+      last_failure_reason: latestFailed?.failure_reason ?? null,
+    })
+    .eq("id", clientId);
+}
 
 function getPayPlusConfig() {
   const apiKey = Deno.env.get("PAYPLUS_API_KEY");

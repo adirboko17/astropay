@@ -1,0 +1,1 @@
+{"name":"sync-payplus-recurring-customers","entrypoint_path":"index.ts","verify_jwt":false,"fileNames":["index.ts","payplus-client.ts","types.ts","charge-sync.ts","mapper.ts"]}

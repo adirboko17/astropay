@@ -95,6 +95,7 @@ export interface Database {
           recurring_client_id: string;
           payplus_transaction_uid: string | null;
           payplus_recurring_uid: string | null;
+          payplus_charge_uid: string | null;
           check_month: string;
           amount: number;
           currency: string;

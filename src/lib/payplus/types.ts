@@ -2,6 +2,7 @@ export interface SyncResult {
   synced_count: number;
   created_count: number;
   updated_count: number;
+  charges_synced_count: number;
   errors: SyncError[];
 }
 

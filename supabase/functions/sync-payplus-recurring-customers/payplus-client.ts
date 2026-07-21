@@ -1,4 +1,9 @@
-import type { PayPlusRecurringListResponse, PayPlusRecurringPayment } from "./types.ts";
+import type {
+  PayPlusRecurringChargeListResponse,
+  PayPlusRecurringListResponse,
+  PayPlusRecurringPayment,
+  PayPlusRecurringCharge,
+} from "./types.ts";
 
 const PAGE_SIZE = 500;
 
@@ -64,6 +69,38 @@ export async function fetchActiveRecurringPayments(
     if (typeof valid === "number") return valid === 1;
     return false;
   });
+}
+
+export async function fetchRecurringCharges(
+  config: PayPlusConfig,
+  recurringUid: string,
+): Promise<PayPlusRecurringCharge[]> {
+  const path = `RecurringPayments/${encodeURIComponent(recurringUid)}/ViewRecurringCharge`;
+  const url = buildPayPlusUrl(config.baseUrl, path, {
+    terminal_uid: config.terminalUid,
+    skip: "0",
+    take: "500",
+  });
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "api-key": config.apiKey,
+      "secret-key": config.secretKey,
+      Accept: "application/json",
+    },
+  });
+
+  const body = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    const message = extractPayPlusErrorMessage(body) ??
+      `PayPlus charges request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  const payload = body as PayPlusRecurringChargeListResponse;
+  return Array.isArray(payload.data) ? payload.data : [];
 }
 
 function buildPayPlusUrl(
