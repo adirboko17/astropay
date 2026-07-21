@@ -1,5 +1,7 @@
 import { TasksManager } from "@/components/tasks/tasks-manager";
+import { getUserAssignee } from "@/lib/auth/user-names";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type {
   Customer,
   CustomerCharge,
@@ -11,6 +13,12 @@ import type {
 export const dynamic = "force-dynamic";
 
 export default async function TasksPage() {
+  const authClient = await createClient();
+  const {
+    data: { session },
+  } = await authClient.auth.getSession();
+  const currentAssignee = getUserAssignee(session?.user.email);
+
   let tasks: Task[] = [];
   let subtasks: TaskSubtask[] = [];
   let customers: Customer[] = [];
@@ -62,6 +70,7 @@ export default async function TasksPage() {
           customers={customers}
           payments={payments}
           charges={charges}
+          currentAssignee={currentAssignee}
         />
       )}
     </>

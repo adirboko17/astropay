@@ -3,8 +3,54 @@
 import { revalidatePath } from "next/cache";
 
 import type { CredentialFormData } from "@/lib/credentials/constants";
-import { isEnvTable } from "@/lib/credentials/env-table";
+import {
+  ENV_TABLE_NAME,
+  isEnvTable,
+  isReservedEnvTableName,
+} from "@/lib/credentials/env-table";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+function revalidateCredentialAreas() {
+  revalidatePath("/credentials", "layout");
+  revalidatePath("/env", "layout");
+}
+
+export async function ensureEnvCredentialTable() {
+  try {
+    const supabase = createAdminClient();
+    const { data: tables, error: listError } = await supabase
+      .from("credential_tables")
+      .select("*");
+
+    if (listError) {
+      return { table: null, error: listError.message };
+    }
+
+    const existing = tables?.find((table) => isEnvTable(table.name));
+    if (existing) {
+      return { table: existing, error: null };
+    }
+
+    const { data: created, error: createError } = await supabase
+      .from("credential_tables")
+      .insert({ name: ENV_TABLE_NAME })
+      .select("*")
+      .single();
+
+    if (createError) {
+      return { table: null, error: createError.message };
+    }
+
+    revalidateCredentialAreas();
+    return { table: created, error: null };
+  } catch (error) {
+    return {
+      table: null,
+      error:
+        error instanceof Error ? error.message : "שגיאה בהכנת טבלת ENV",
+    };
+  }
+}
 
 async function resolveTableName(tableId: string) {
   const supabase = createAdminClient();
@@ -165,6 +211,12 @@ export async function createCredentialTable(name: string) {
     return { error: "שם הטבלה הוא שדה חובה" };
   }
 
+  if (isReservedEnvTableName(trimmedName)) {
+    return {
+      error: 'שם "ENV" שמור — השתמש בפריט ENV בתפריט הצד',
+    };
+  }
+
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -175,7 +227,7 @@ export async function createCredentialTable(name: string) {
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials", "layout");
+    revalidateCredentialAreas();
     return { success: true, id: data.id };
   } catch (error) {
     return {
@@ -215,7 +267,7 @@ export async function createCredential(
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials", "layout");
+    revalidateCredentialAreas();
     return { success: true, clientId: client.id, credential: created };
   } catch (error) {
     return {
@@ -274,7 +326,7 @@ export async function updateCredential(
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials", "layout");
+    revalidateCredentialAreas();
     return { success: true, clientId: client.id };
   } catch (error) {
     return {
@@ -293,7 +345,7 @@ export async function deleteCredential(id: string) {
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials", "layout");
+    revalidateCredentialAreas();
     return { success: true };
   } catch (error) {
     return {
@@ -309,8 +361,28 @@ export async function updateCredentialTableName(id: string, name: string) {
     return { error: "שם הטבלה הוא שדה חובה" };
   }
 
+  if (isReservedEnvTableName(trimmedName)) {
+    return {
+      error: 'שם "ENV" שמור — השתמש בפריט ENV בתפריט הצד',
+    };
+  }
+
   try {
     const supabase = createAdminClient();
+
+    const { data: existingTable, error: existingError } = await supabase
+      .from("credential_tables")
+      .select("name")
+      .eq("id", id)
+      .single();
+
+    if (existingError || !existingTable) {
+      return { error: "הטבלה לא נמצאה" };
+    }
+
+    if (isEnvTable(existingTable.name)) {
+      return { error: "לא ניתן לשנות את שם טבלת ENV" };
+    }
 
     const { error: tableError } = await supabase
       .from("credential_tables")
@@ -326,7 +398,7 @@ export async function updateCredentialTableName(id: string, name: string) {
 
     if (credentialsError) return { error: credentialsError.message };
 
-    revalidatePath("/credentials", "layout");
+    revalidateCredentialAreas();
     revalidatePath(`/credentials/${id}`, "layout");
     return { success: true as const };
   } catch (error) {
@@ -341,6 +413,20 @@ export async function deleteCredentialTable(id: string) {
   try {
     const supabase = createAdminClient();
 
+    const { data: existingTable, error: existingError } = await supabase
+      .from("credential_tables")
+      .select("name")
+      .eq("id", id)
+      .single();
+
+    if (existingError || !existingTable) {
+      return { error: "הטבלה לא נמצאה" };
+    }
+
+    if (isEnvTable(existingTable.name)) {
+      return { error: "לא ניתן למחוק את טבלת ENV" };
+    }
+
     const { error } = await supabase
       .from("credential_tables")
       .delete()
@@ -348,7 +434,7 @@ export async function deleteCredentialTable(id: string) {
 
     if (error) return { error: error.message };
 
-    revalidatePath("/credentials", "layout");
+    revalidateCredentialAreas();
     return { success: true };
   } catch (error) {
     return {
@@ -381,7 +467,7 @@ export async function updateCredentialClientName(clientId: string, name: string)
 
     if (credentialsError) return { error: credentialsError.message };
 
-    revalidatePath("/credentials", "layout");
+    revalidateCredentialAreas();
     return { success: true as const, name: trimmedName };
   } catch (error) {
     return {
@@ -404,7 +490,7 @@ export async function markCredentialTableViewed(tableId: string) {
       return { error: error.message };
     }
 
-    revalidatePath("/credentials", "layout");
+    revalidateCredentialAreas();
     return { success: true as const };
   } catch (error) {
     return {

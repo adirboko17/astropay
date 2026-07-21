@@ -1,9 +1,8 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { markCredentialTableViewed } from "@/app/credentials/actions";
 import { CredentialsManager } from "@/components/credentials/credentials-manager";
-import { EnvCredentialsManager } from "@/components/credentials/env-credentials-manager";
 import { isEnvTable } from "@/lib/credentials/env-table";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ClientCredential, CredentialClient, CredentialTable } from "@/types/database";
@@ -57,7 +56,7 @@ export default async function CredentialTablePage({ params }: TablePageProps) {
     if (tablesResult.error) {
       loadError = tablesResult.error.message;
     } else {
-      tables = tablesResult.data ?? [];
+      tables = (tablesResult.data ?? []).filter((item) => !isEnvTable(item.name));
     }
 
     if (credentialsResult.error) {
@@ -80,6 +79,10 @@ export default async function CredentialTablePage({ params }: TablePageProps) {
     notFound();
   }
 
+  if (isEnvTable(table.name)) {
+    redirect("/env");
+  }
+
   await markCredentialTableViewed(tableId);
 
   return (
@@ -97,20 +100,12 @@ export default async function CredentialTablePage({ params }: TablePageProps) {
             </div>
           }
         >
-          {isEnvTable(table.name) ? (
-            <EnvCredentialsManager
-              table={table}
-              initialCredentials={credentials}
-              initialClients={clients}
-            />
-          ) : (
-            <CredentialsManager
-              table={table}
-              initialCredentials={credentials}
-              initialTables={tables}
-              initialClients={clients}
-            />
-          )}
+          <CredentialsManager
+            table={table}
+            initialCredentials={credentials}
+            initialTables={tables}
+            initialClients={clients}
+          />
         </Suspense>
       )}
     </>

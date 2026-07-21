@@ -1,5 +1,11 @@
+export const ENV_TABLE_NAME = "ENV";
+
 export function isEnvTable(name: string | null | undefined) {
   return name?.trim().toLowerCase() === "env";
+}
+
+export function isReservedEnvTableName(name: string) {
+  return isEnvTable(name);
 }
 
 export function countEnvVariables(content: string | null | undefined) {

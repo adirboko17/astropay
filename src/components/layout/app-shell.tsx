@@ -9,7 +9,12 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-const WIDE_PATH_MATCHERS = [/^\/credentials(\/|$)/, /^\/customers\/[^/]+$/];
+const WIDE_PATH_MATCHERS = [
+  /^\/credentials(\/|$)/,
+  /^\/env(\/|$)/,
+  /^\/customers\/[^/]+$/,
+  /^\/tasks(\/|$)/,
+];
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();

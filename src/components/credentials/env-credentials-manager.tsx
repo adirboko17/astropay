@@ -13,6 +13,7 @@ import {
   ClientSelectorField,
   getClientNameForSave,
 } from "@/components/credentials/client-selector-field";
+import { PageHero } from "@/components/layout/page-hero";
 import { TableRowActionsMenu, UserCardIcon } from "@/components/ui/table-row-actions-menu";
 import { useSyncedState } from "@/lib/hooks/use-synced-state";
 import { EMPTY_CREDENTIAL } from "@/lib/credentials/constants";
@@ -260,7 +261,7 @@ export function EnvCredentialsManager({
   const isBusy = isSaving || deletingId !== null;
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-5xl space-y-6">
       {(message || error) && (
         <div
           className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
@@ -273,24 +274,39 @@ export function EnvCredentialsManager({
         </div>
       )}
 
+      <PageHero
+        title="ENV"
+        description="שמירת קובץ .env לכל פרויקט — הדבקה, עריכה והעתקה מלאה"
+        accent="emerald"
+        metrics={[
+          { label: "פרויקטים", value: String(tableCredentials.length) },
+          {
+            label: "משתנים (סה״כ)",
+            value: String(
+              tableCredentials.reduce(
+                (sum, row) => sum + countEnvVariables(row.notes),
+                0,
+              ),
+            ),
+          },
+        ]}
+      >
+        <button
+          type="button"
+          onClick={openAddModal}
+          className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-50"
+        >
+          + הוסף ENV
+        </button>
+      </PageHero>
+
       <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <div>
-            <Link
-              href="/credentials"
-              className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-900"
-            >
-              ← חזור לכל הטבלאות
-            </Link>
-            <h2 className="mt-2 text-base font-semibold text-slate-900">{table.name}</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              שמירת קובץ .env לכל פרויקט — הדבקה, עריכה והעתקה מלאה
-            </p>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+          <h2 className="text-base font-semibold text-slate-900">קבצי ENV לפי פרויקט</h2>
           <button
             type="button"
             onClick={openAddModal}
-            className="h-10 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+            className="h-10 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 lg:hidden"
           >
             + הוסף ENV
           </button>

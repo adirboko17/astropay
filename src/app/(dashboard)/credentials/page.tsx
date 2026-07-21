@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { CredentialsTablesHome } from "@/components/credentials/credentials-tables-home";
+import { isEnvTable } from "@/lib/credentials/env-table";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ClientCredential, CredentialTable } from "@/types/database";
 
@@ -39,13 +40,18 @@ export default async function CredentialsPage({ searchParams }: CredentialsPageP
     if (tablesResult.error) {
       loadError = tablesResult.error.message;
     } else {
-      tables = tablesResult.data ?? [];
+      tables = (tablesResult.data ?? []).filter((table) => !isEnvTable(table.name));
     }
 
     if (credentialsResult.error) {
       loadError = credentialsResult.error.message;
     } else {
-      credentials = credentialsResult.data ?? [];
+      const envTableId = (tablesResult.data ?? []).find((table) =>
+        isEnvTable(table.name),
+      )?.id;
+      credentials = (credentialsResult.data ?? []).filter(
+        (credential) => credential.table_id !== envTableId,
+      );
     }
   } catch (error) {
     loadError =
