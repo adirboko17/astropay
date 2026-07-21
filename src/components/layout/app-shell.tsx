@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { InstallAppBanner } from "@/components/pwa/install-app-banner";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -24,6 +25,8 @@ export function AppShell({ children }: AppShellProps) {
           {children}
         </main>
       </div>
+
+      <InstallAppBanner />
     </div>
   );
 }
