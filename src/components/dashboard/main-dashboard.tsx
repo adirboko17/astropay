@@ -20,86 +20,94 @@ export function MainDashboard({ stats, userName, openTasksSection }: MainDashboa
   }).format(now);
 
   return (
-    <div className="space-y-6">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-blue-700 via-indigo-700 to-slate-900 p-6 text-white shadow-lg sm:p-8">
-        <div className="pointer-events-none absolute -start-20 -top-24 h-64 w-64 rounded-full bg-blue-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 end-10 h-72 w-72 rounded-full bg-indigo-400/20 blur-3xl" />
-
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
+    <div className="space-y-5">
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+        <div className="flex items-center gap-3 px-5 py-5 sm:px-6">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white">
+            <DashboardGlyph />
+          </span>
           <div>
-            <p className="text-sm font-medium text-blue-200">{dateLabel}</p>
-            <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{greeting}</h1>
-            <p className="mt-2 max-w-md text-sm text-blue-100/80">
+            <p className="text-[11px] font-semibold text-blue-600">{dateLabel}</p>
+            <h1 className="mt-0.5 text-xl font-bold text-slate-950 sm:text-2xl">{greeting}</h1>
+            <p className="mt-1 text-sm text-slate-500">
               {stats.collections.remaining > 0
                 ? `נותרו ${formatCurrency(stats.collections.remaining)} לגבייה מ-${stats.customers.billingCount} לקוחות`
                 : "כל הגבייה הושלמה — אין יתרות פתוחות"}
             </p>
           </div>
-
-          <div className="flex flex-wrap gap-6 sm:gap-10">
-            <HeroMetric label="שולם" value={formatCurrency(stats.collections.totalPaid)} />
-            <HeroMetric label="נותר לגבות" value={formatCurrency(stats.collections.remaining)} />
-            <HeroMetric
-              label="הכנסה חודשית (PayPlus)"
-              value={formatCurrency(stats.payplus.monthlyExpected)}
-            />
-          </div>
         </div>
 
-        {/* Collection progress */}
-        <div className="relative mt-7">
-          <div className="flex items-center justify-between text-xs text-blue-100/80">
-            <span>התקדמות גבייה</span>
-            <span className="font-semibold text-white">{ratePercent}%</span>
-          </div>
-          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/15">
-            <div
-              className="h-full rounded-full bg-gradient-to-l from-emerald-300 to-emerald-500 transition-all"
-              style={{ width: `${ratePercent}%` }}
-            />
-          </div>
-          <div className="mt-2 flex justify-between text-[11px] text-blue-200/70">
-            <span>{formatCurrency(stats.collections.totalPaid)} נגבו</span>
-            <span>מתוך {formatCurrency(stats.collections.totalDue)}</span>
+        <div className="grid border-t border-slate-100 sm:grid-cols-[1fr_1fr_1fr_1.35fr]">
+          <HeaderMetric
+            label="נגבה בפועל"
+            value={formatCurrency(stats.collections.totalPaid)}
+            tone="success"
+          />
+          <HeaderMetric
+            label="נותר לגבות"
+            value={formatCurrency(stats.collections.remaining)}
+            tone={stats.collections.remaining > 0 ? "danger" : "success"}
+          />
+          <HeaderMetric
+            label="הכנסה חודשית PayPlus"
+            value={formatCurrency(stats.payplus.monthlyExpected)}
+            tone="violet"
+          />
+          <div className="border-t border-slate-100 px-5 py-4 sm:border-s sm:border-t-0 sm:px-6">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-500">התקדמות גבייה</p>
+              <span className="text-sm font-bold tabular-nums text-emerald-600">
+                {ratePercent}%
+              </span>
+            </div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all"
+                style={{ width: `${Math.max(0, Math.min(ratePercent, 100))}%` }}
+              />
+            </div>
+            <p className="mt-2 text-[11px] text-slate-400">
+              מתוך {formatCurrency(stats.collections.totalDue)}
+            </p>
           </div>
         </div>
       </section>
 
-      {/* KPI cards */}
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="לקוחות עם גבייה"
-          value={String(stats.customers.billingCount)}
-          hint={`${stats.collections.paidCount} שילמו במלואם`}
-          icon={<UsersGlyph />}
-          accent="blue"
-          href="/customers"
-        />
-        <KpiCard
-          label="פרויקטים שלי"
-          value={String(stats.customers.projectsCount)}
-          hint="ללא סכום גבייה"
-          icon={<FolderGlyph />}
-          accent="violet"
-          href="/projects"
-        />
-        <KpiCard
-          label="לא שילמו כלל"
-          value={String(stats.collections.unpaidCount)}
-          hint={`${stats.collections.partialCount} שילמו חלקית`}
-          icon={<AlertGlyph />}
-          accent={stats.collections.unpaidCount > 0 ? "red" : "emerald"}
-          href="/collections"
-        />
-        <KpiCard
-          label="רשומות התחברות"
-          value={String(stats.credentials.recordsCount)}
-          hint={`ב-${stats.credentials.tablesCount} טבלאות`}
-          icon={<KeyGlyph />}
-          accent="amber"
-          href="/credentials"
-        />
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.035)]">
+        <div className="grid grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="לקוחות עם גבייה"
+            value={String(stats.customers.billingCount)}
+            hint={`${stats.collections.paidCount} שילמו במלואם`}
+            icon={<UsersGlyph />}
+            accent="blue"
+            href="/customers"
+          />
+          <KpiCard
+            label="פרויקטים שלי"
+            value={String(stats.customers.projectsCount)}
+            hint="ללא סכום גבייה"
+            icon={<FolderGlyph />}
+            accent="violet"
+            href="/projects"
+          />
+          <KpiCard
+            label="לא שילמו כלל"
+            value={String(stats.collections.unpaidCount)}
+            hint={`${stats.collections.partialCount} שילמו חלקית`}
+            icon={<AlertGlyph />}
+            accent={stats.collections.unpaidCount > 0 ? "red" : "emerald"}
+            href="/collections"
+          />
+          <KpiCard
+            label="רשומות התחברות"
+            value={String(stats.credentials.recordsCount)}
+            hint={`ב-${stats.credentials.tablesCount} טבלאות`}
+            icon={<KeyGlyph />}
+            accent="amber"
+            href="/credentials"
+          />
+        </div>
       </section>
 
       {openTasksSection}
@@ -121,7 +129,7 @@ export function MainDashboard({ stats, userName, openTasksSection }: MainDashboa
 
       {/* Lists */}
       <section className="grid gap-4 xl:grid-cols-2">
-        <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
               <h3 className="text-base font-semibold text-slate-900">חייבים מובילים</h3>
@@ -179,7 +187,7 @@ export function MainDashboard({ stats, userName, openTasksSection }: MainDashboa
           )}
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
               <h3 className="text-base font-semibold text-slate-900">תשלומים אחרונים</h3>
@@ -245,11 +253,28 @@ function getGreeting(now: Date, userName?: string) {
   return userName ? `${base} ${userName}` : base;
 }
 
-function HeroMetric({ label, value }: { label: string; value: string }) {
+function HeaderMetric({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "success" | "danger" | "violet";
+}) {
+  const valueColor = {
+    default: "text-slate-950",
+    success: "text-emerald-600",
+    danger: "text-rose-600",
+    violet: "text-violet-600",
+  }[tone];
+
   return (
-    <div>
-      <p className="text-xs font-medium text-blue-200">{label}</p>
-      <p className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{value}</p>
+    <div className="border-t border-slate-100 px-5 py-4 first:border-t-0 sm:border-s sm:border-t-0 sm:px-6 sm:first:border-s-0">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${valueColor}`}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -280,19 +305,21 @@ function KpiCard({
   return (
     <Link
       href={href}
-      className="group rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+      className="group border-s border-t border-slate-100 p-4 transition first:border-s-0 first:border-t-0 hover:bg-slate-50/70 lg:border-t-0 lg:p-5 [&:nth-child(2)]:border-t-0"
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
-          {hint ? <p className="mt-1 text-xs text-slate-400">{hint}</p> : null}
-        </div>
+      <div className="flex items-center gap-3">
         <span
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ${ACCENT_CLASSES[accent]}`}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${ACCENT_CLASSES[accent]}`}
         >
           {icon}
         </span>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium text-slate-500">{label}</p>
+          <div className="mt-0.5 flex items-end gap-2">
+            <p className="text-2xl font-bold tracking-tight text-slate-950">{value}</p>
+            {hint ? <p className="mb-0.5 truncate text-[11px] text-slate-400">{hint}</p> : null}
+          </div>
+        </div>
       </div>
     </Link>
   );
@@ -338,6 +365,17 @@ function InsightCard({ insight }: { insight: Insight }) {
 
 function EmptyState({ text }: { text: string }) {
   return <p className="px-5 py-12 text-center text-sm text-slate-400">{text}</p>;
+}
+
+function DashboardGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
 }
 
 function UsersGlyph() {

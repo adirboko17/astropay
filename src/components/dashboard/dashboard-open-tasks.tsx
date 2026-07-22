@@ -195,8 +195,8 @@ export function DashboardOpenTasks({
 
   return (
     <>
-      <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-l from-violet-50/80 to-white px-5 py-4">
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-4">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 ring-1 ring-violet-200">
               <TasksGlyph />
@@ -212,14 +212,14 @@ export function DashboardOpenTasks({
           <div className="flex items-center gap-2">
             <Link
               href="/tasks"
-              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
             >
               כל המשימות
             </Link>
             <button
               type="button"
               onClick={openCreate}
-              className="rounded-full bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700"
+              className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
             >
               + משימה חדשה
             </button>

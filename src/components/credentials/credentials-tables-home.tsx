@@ -9,7 +9,6 @@ import {
   updateCredentialTableName,
 } from "@/app/credentials/actions";
 import { CreateTableModal } from "@/components/credentials/create-table-modal";
-import { PageHero } from "@/components/layout/page-hero";
 import { TableRowActionsMenu } from "@/components/ui/table-row-actions-menu";
 import { useSyncedState } from "@/lib/hooks/use-synced-state";
 import {
@@ -109,36 +108,82 @@ export function CredentialsTablesHome({
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <PageHero
-        title="פרטי התחברות"
-        description="סיסמאות, גישות וחשבונות — מאורגנים בטבלאות לפי פלטפורמה"
-        accent="slate"
-        metrics={[
-          { label: "טבלאות", value: String(tables.length) },
-          { label: "רשומות", value: String(credentials.length) },
-        ]}
-      >
-        <button
-          type="button"
-          onClick={() => setCreateModalOpen(true)}
-          className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-100"
-        >
-          + טבלה חדשה
-        </button>
-      </PageHero>
+    <div className="space-y-5">
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+        <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white">
+              <KeyIcon />
+            </span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-600">
+                Credentials
+              </p>
+              <h1 className="mt-0.5 text-xl font-bold text-slate-950 sm:text-2xl">
+                פרטי התחברות
+              </h1>
+              <p className="mt-1 text-sm text-slate-500">
+                סיסמאות וחשבונות מאורגנים לפי פלטפורמה
+              </p>
+            </div>
+          </div>
+        </div>
 
-      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <h2 className="text-base font-semibold text-slate-900">הטבלאות שלי</h2>
-          <div className="relative w-full max-w-xs sm:w-72">
+        <div className="grid border-t border-slate-100 sm:grid-cols-3">
+          <HeaderMetric label="טבלאות" value={String(tables.length)} />
+          <HeaderMetric label="רשומות" value={String(credentials.length)} tone="blue" />
+          <HeaderMetric
+            label="ממוצע רשומות לטבלה"
+            value={tables.length > 0 ? String(Math.round(credentials.length / tables.length)) : "0"}
+          />
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+        <div className="relative z-20 border-b border-slate-100 p-3 sm:p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <TableIcon />
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900">הטבלאות שלי</h2>
+                <p className="text-xs text-slate-400">
+                  מציג {tableItems.length} מתוך {tables.length} טבלאות
+                </p>
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row xl:max-w-2xl">
+              <div className="relative min-w-0 flex-1">
+                <SearchIcon />
             <input
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="חיפוש בטבלאות..."
-              className="h-10 w-full rounded-full border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/70 pe-10 ps-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
             />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    aria-label="נקה חיפוש"
+                    className="absolute end-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+                  >
+                    <ClearIcon />
+                  </button>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(true)}
+                className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <PlusIcon />
+                טבלה חדשה
+              </button>
+            </div>
           </div>
         </div>
 
@@ -148,16 +193,18 @@ export function CredentialsTablesHome({
           </div>
         ) : null}
 
-        <div className="hidden grid-cols-[minmax(0,1fr)_80px_100px_100px_88px] gap-4 border-b border-slate-100 px-5 py-3 text-xs font-medium text-slate-500 sm:grid">
-          <span>שם</span>
-          <span>רשומות</span>
-          <span>צפייה אחרונה</span>
-          <span>עדכון אחרון</span>
-          <span>פעולות</span>
-        </div>
+        <div className="overflow-x-auto p-2">
+          <div className="min-w-[820px]">
+            <div className="grid grid-cols-[minmax(300px,1fr)_110px_145px_145px_48px] items-center px-4 py-2.5 text-[11px] font-semibold text-slate-500">
+              <span>שם הטבלה</span>
+              <span>רשומות</span>
+              <span>צפייה אחרונה</span>
+              <span>עדכון אחרון</span>
+              <span />
+            </div>
 
-        {tableItems.length === 0 ? (
-          <div className="px-5 py-16 text-center">
+          {tableItems.length === 0 ? (
+              <div className="rounded-xl border border-slate-100 bg-white px-6 py-16 text-center">
             <p className="text-sm font-medium text-slate-600">
               {searchQuery.trim() ? "לא נמצאו טבלאות" : "עדיין אין טבלאות"}
             </p>
@@ -168,7 +215,7 @@ export function CredentialsTablesHome({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+              <div className="space-y-3">
             <TableGroup
               title="היום"
               items={groupedTables.today}
@@ -201,6 +248,8 @@ export function CredentialsTablesHome({
             />
           </div>
         )}
+          </div>
+        </div>
       </section>
 
       <CreateTableModal
@@ -250,6 +299,79 @@ export function CredentialsTablesHome({
   );
 }
 
+function HeaderMetric({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "blue";
+}) {
+  return (
+    <div className="border-t border-slate-100 px-5 py-4 first:border-t-0 sm:border-s sm:border-t-0 sm:px-6 sm:first:border-s-0">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p
+        className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${
+          tone === "blue" ? "text-blue-600" : "text-slate-950"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ClearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="m7 7 10 10M17 7 7 17" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function KeyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="8" cy="15" r="4" />
+      <path d="m11 12 8-8M16 7l3 3M14 9l2 2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function TableIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9h18M9 9v11" />
+    </svg>
+  );
+}
+
 function TableGroup({
   title,
   items,
@@ -272,22 +394,24 @@ function TableGroup({
   if (items.length === 0) return null;
 
   return (
-    <div>
-      <div className="bg-slate-50 px-5 py-2 text-xs font-semibold text-slate-500">
+    <div className="space-y-2">
+      <div className="px-4 pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
         {title}
       </div>
-      {items.map((table) => (
-        <TableRow
-          key={table.id}
-          table={table}
-          isDeleting={deletingTableId === table.id}
-          isSaving={savingTableId === table.id}
-          menuOpen={openMenuId === table.id}
-          onOpenMenu={onOpenMenu}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
-      ))}
+      <div className="space-y-2">
+        {items.map((table) => (
+          <TableRow
+            key={table.id}
+            table={table}
+            isDeleting={deletingTableId === table.id}
+            isSaving={savingTableId === table.id}
+            menuOpen={openMenuId === table.id}
+            onOpenMenu={onOpenMenu}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -313,50 +437,53 @@ function TableRow({
   const isBusy = isDeleting || isSaving;
 
   return (
-    <div className="group relative grid grid-cols-[minmax(0,1fr)_88px] items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_80px_100px_100px_88px] sm:gap-4 sm:px-5">
+    <article className="group relative grid min-h-[68px] grid-cols-[minmax(300px,1fr)_110px_145px_145px_48px] items-center rounded-xl border border-slate-100 bg-white shadow-[0_3px_12px_rgba(15,23,42,0.045)] transition hover:border-slate-200">
       <Link
         href={`/credentials/${table.id}`}
-        className="col-span-1 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:col-span-4 sm:grid-cols-[minmax(0,1fr)_80px_100px_100px] sm:gap-4"
+        className="col-span-4 grid min-w-0 grid-cols-[minmax(300px,1fr)_110px_145px_145px] items-center"
       >
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3 px-4 py-3">
           <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white ${iconColor}`}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm ${iconColor}`}
           >
             {table.name.charAt(0).toUpperCase()}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-slate-900">
+            <p className="truncate text-sm font-bold text-slate-900 transition group-hover:text-blue-700">
               {table.name}
             </p>
-            <p className="mt-0.5 text-xs text-slate-500 sm:hidden">
-              {table.recordCount} רשומות · צפייה{" "}
-              {formatTableDate(table.last_viewed_at)}
+            <p className="mt-1 truncate text-xs text-slate-400">
+              טבלת פרטי התחברות
             </p>
           </div>
         </div>
 
-        <span className="hidden text-sm text-slate-600 sm:block">
-          {table.recordCount}
+        <span className="px-3 py-3">
+          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100">
+            {table.recordCount} רשומות
+          </span>
         </span>
-        <span className="hidden text-sm text-slate-500 sm:block">
+        <span className="px-3 py-3 text-sm tabular-nums text-slate-500">
           {formatTableDate(table.last_viewed_at)}
         </span>
-        <span className="hidden text-sm text-slate-400 sm:block">
+        <span className="px-3 py-3 text-sm tabular-nums text-slate-400">
           {formatTableDate(table.updated_at)}
         </span>
       </Link>
 
-      <TableRowActionsMenu
-        disabled={isBusy}
-        isDeleting={isDeleting}
-        editLabel="ערוך שם טבלה"
-        deleteLabel="מחק טבלה"
-        open={menuOpen}
-        onOpenChange={(open) => onOpenMenu(open ? table.id : null)}
-        onEdit={() => onEdit(table)}
-        onDelete={() => onDelete(table)}
-      />
-    </div>
+      <div className="flex justify-center px-1 py-3">
+        <TableRowActionsMenu
+          disabled={isBusy}
+          isDeleting={isDeleting}
+          editLabel="ערוך שם טבלה"
+          deleteLabel="מחק טבלה"
+          open={menuOpen}
+          onOpenChange={(open) => onOpenMenu(open ? table.id : null)}
+          onEdit={() => onEdit(table)}
+          onDelete={() => onDelete(table)}
+        />
+      </div>
+    </article>
   );
 }
 

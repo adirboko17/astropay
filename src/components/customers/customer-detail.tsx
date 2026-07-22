@@ -48,6 +48,7 @@ import {
   EMPTY_CREDENTIAL,
   type CredentialFormData,
 } from "@/lib/credentials/constants";
+import type { PayPlusRecurringDetailView } from "@/lib/payplus/types";
 import { getPlatformBadgeClass } from "@/lib/credentials/platform-ui";
 import { getTableName } from "@/lib/credentials/tables";
 import type {
@@ -82,6 +83,7 @@ interface CustomerDetailProps {
   initialPayments: CustomerPayment[];
   initialCharges: CustomerCharge[];
   linkedRecurringClient: RecurringClient | null;
+  linkedRecurringDetail: PayPlusRecurringDetailView | null;
   unlinkedRecurringClients: RecurringClient[];
 }
 
@@ -92,6 +94,7 @@ export function CustomerDetail({
   initialPayments,
   initialCharges,
   linkedRecurringClient,
+  linkedRecurringDetail,
   unlinkedRecurringClients,
 }: CustomerDetailProps) {
   const router = useRouter();
@@ -126,10 +129,39 @@ export function CustomerDetail({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const balance = useMemo(
-    () => computeCustomerBalance(customer, payments, charges),
-    [customer, payments, charges],
-  );
+  const payPlusPaidThisMonth = useMemo(() => {
+    if (!linkedRecurringDetail) return 0;
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    return linkedRecurringDetail.charges
+      .filter((charge) => {
+        const date = charge.executionDate ?? charge.chargeDate;
+        return charge.isSuccess && date?.slice(0, 7) === monthKey;
+      })
+      .reduce((sum, charge) => sum + charge.amount, 0);
+  }, [linkedRecurringDetail]);
+
+  const balance = useMemo(() => {
+    const manualBalance = computeCustomerBalance(customer, payments, charges);
+    if (!linkedRecurringClient) return manualBalance;
+
+    const recurringMonthlyDue = Number(linkedRecurringClient.monthly_amount || 0);
+    const totalDue =
+      manualBalance.totalDue > 0 ? manualBalance.totalDue : recurringMonthlyDue;
+    const totalPaid = manualBalance.totalPaid + payPlusPaidThisMonth;
+
+    return {
+      ...manualBalance,
+      totalDue,
+      totalPaid,
+      remaining: Math.max(totalDue - totalPaid, 0),
+      currency:
+        manualBalance.totalDue > 0
+          ? manualBalance.currency
+          : linkedRecurringClient.currency || manualBalance.currency,
+    };
+  }, [customer, payments, charges, linkedRecurringClient, payPlusPaidThisMonth]);
   const status = getCollectionStatus(balance);
   const isProject = !isBillingCustomer(customer, payments, charges);
 
@@ -640,6 +672,30 @@ export function CustomerDetail({
                 </div>
               </div>
 
+              {linkedRecurringClient ? (
+                <div className="rounded-xl border border-violet-100 bg-violet-50/70 px-3 py-2.5 text-xs text-violet-800">
+                  החישוב כולל הוראת קבע חודשית של{" "}
+                  <span className="font-semibold">
+                    {formatCurrency(
+                      Number(linkedRecurringClient.monthly_amount),
+                      linkedRecurringClient.currency,
+                    )}
+                  </span>
+                  {payPlusPaidThisMonth > 0 ? (
+                    <>
+                      {" "}
+                      ו־
+                      <span className="font-semibold">
+                        {formatCurrency(payPlusPaidThisMonth, linkedRecurringClient.currency)}
+                      </span>{" "}
+                      שחויבו בהצלחה ב-PayPlus החודש.
+                    </>
+                  ) : (
+                    ". עדיין לא נמצא חיוב מוצלח החודש."
+                  )}
+                </div>
+              ) : null}
+
               {balance.totalDue > 0 ? (
                 <span
                   className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-medium ${getCollectionStatusBadgeClass(status)}`}
@@ -790,6 +846,10 @@ export function CustomerDetail({
                     <p className="mt-1 text-xs text-indigo-700">
                       סטטוס: {linkedRecurringClient.recurring_status ?? "—"} · חיוב הבא:{" "}
                       {formatDate(linkedRecurringClient.next_billing_date)}
+                    </p>
+                    <p className="mt-2 border-t border-indigo-100 pt-2 text-xs font-medium text-indigo-800">
+                      חויב בהצלחה החודש:{" "}
+                      {formatCurrency(payPlusPaidThisMonth, linkedRecurringClient.currency)}
                     </p>
                   </div>
                   <button

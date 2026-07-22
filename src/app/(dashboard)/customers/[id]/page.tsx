@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { CustomerDetail } from "@/components/customers/customer-detail";
+import { loadPayPlusPagePayload } from "@/lib/payplus/recurring-view";
+import type { PayPlusRecurringDetailView } from "@/lib/payplus/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   ClientCredential,
@@ -27,6 +29,7 @@ export default async function CustomerPage({ params }: CustomerPageProps) {
   let payments: CustomerPayment[] = [];
   let charges: CustomerCharge[] = [];
   let linkedRecurringClient: RecurringClient | null = null;
+  let linkedRecurringDetail: PayPlusRecurringDetailView | null = null;
   let unlinkedRecurringClients: RecurringClient[] = [];
   let loadError: string | null = null;
 
@@ -77,6 +80,11 @@ export default async function CustomerPage({ params }: CustomerPageProps) {
     charges = chargesResult.data ?? [];
     linkedRecurringClient = linkedResult.data ?? null;
     unlinkedRecurringClients = unlinkedResult.data ?? [];
+
+    if (linkedRecurringClient) {
+      const payPlusPayload = await loadPayPlusPagePayload([linkedRecurringClient]);
+      linkedRecurringDetail = payPlusPayload.items[0] ?? null;
+    }
   } catch (error) {
     loadError = error instanceof Error ? error.message : "שגיאה בטעינת פרטי הלקוח";
   }
@@ -107,6 +115,7 @@ export default async function CustomerPage({ params }: CustomerPageProps) {
             initialPayments={payments}
             initialCharges={charges}
             linkedRecurringClient={linkedRecurringClient}
+            linkedRecurringDetail={linkedRecurringDetail}
             unlinkedRecurringClients={unlinkedRecurringClients}
           />
         </Suspense>

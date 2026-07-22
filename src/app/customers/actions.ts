@@ -9,6 +9,7 @@ function revalidateCustomerPaths(customerId?: string) {
   revalidatePath("/customers", "layout");
   revalidatePath("/projects", "layout");
   revalidatePath("/collections", "layout");
+  revalidatePath("/payplus", "layout");
   if (customerId) {
     revalidatePath(`/customers/${customerId}`, "layout");
   }
@@ -224,12 +225,30 @@ export async function deletePayment(id: string, customerId: string) {
 export async function linkRecurringClient(customerId: string, recurringClientId: string) {
   try {
     const supabase = createAdminClient();
-    const { error } = await supabase
+
+    const { data: existingLink, error: existingLinkError } = await supabase
+      .from("recurring_clients")
+      .select("id")
+      .eq("customer_id", customerId)
+      .neq("id", recurringClientId)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingLinkError) return { error: existingLinkError.message };
+    if (existingLink) {
+      return { error: "ללקוח הזה כבר מקושרת הוראת קבע אחרת" };
+    }
+
+    const { data: linked, error } = await supabase
       .from("recurring_clients")
       .update({ customer_id: customerId })
-      .eq("id", recurringClientId);
+      .eq("id", recurringClientId)
+      .is("customer_id", null)
+      .select("id")
+      .maybeSingle();
 
     if (error) return { error: error.message };
+    if (!linked) return { error: "הוראת הקבע כבר מקושרת ללקוח אחר" };
 
     revalidateCustomerPaths(customerId);
     return { success: true as const };

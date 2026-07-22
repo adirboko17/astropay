@@ -13,7 +13,6 @@ import {
   ClientSelectorField,
   getClientNameForSave,
 } from "@/components/credentials/client-selector-field";
-import { PageHero } from "@/components/layout/page-hero";
 import { TableRowActionsMenu, UserCardIcon } from "@/components/ui/table-row-actions-menu";
 import { useSyncedState } from "@/lib/hooks/use-synced-state";
 import { EMPTY_CREDENTIAL } from "@/lib/credentials/constants";
@@ -259,9 +258,13 @@ export function EnvCredentialsManager({
   }
 
   const isBusy = isSaving || deletingId !== null;
+  const totalEnvVariables = tableCredentials.reduce(
+    (sum, row) => sum + countEnvVariables(row.notes),
+    0,
+  );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-5">
       {(message || error) && (
         <div
           className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
@@ -274,129 +277,172 @@ export function EnvCredentialsManager({
         </div>
       )}
 
-      <PageHero
-        title="ENV"
-        description="שמירת קובץ .env לכל פרויקט — הדבקה, עריכה והעתקה מלאה"
-        accent="emerald"
-        metrics={[
-          { label: "פרויקטים", value: String(tableCredentials.length) },
-          {
-            label: "משתנים (סה״כ)",
-            value: String(
-              tableCredentials.reduce(
-                (sum, row) => sum + countEnvVariables(row.notes),
-                0,
-              ),
-            ),
-          },
-        ]}
-      >
-        <button
-          type="button"
-          onClick={openAddModal}
-          className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-50"
-        >
-          + הוסף ENV
-        </button>
-      </PageHero>
-
-      <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <h2 className="text-base font-semibold text-slate-900">קבצי ENV לפי פרויקט</h2>
-          <button
-            type="button"
-            onClick={openAddModal}
-            className="h-10 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 lg:hidden"
-          >
-            + הוסף ENV
-          </button>
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+        <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white">
+              <EnvIcon />
+            </span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600">
+                Environment
+              </p>
+              <h1 className="mt-0.5 text-xl font-bold text-slate-950 sm:text-2xl">ENV</h1>
+              <p className="mt-1 text-sm text-slate-500">
+                שמירת משתני סביבה לכל פרויקט במקום אחד
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="border-b border-slate-100 px-5 py-3">
-          <div className="relative max-w-md">
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="חיפוש לפי שם פרויקט או משתנה..."
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white pe-10 ps-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
-            />
-            {searchQuery ? (
+        <div className="grid border-t border-slate-100 sm:grid-cols-3">
+          <HeaderMetric label="פרויקטים" value={String(tableCredentials.length)} />
+          <HeaderMetric label="משתנים שמורים" value={String(totalEnvVariables)} tone="success" />
+          <HeaderMetric
+            label="ממוצע לפרויקט"
+            value={
+              tableCredentials.length > 0
+                ? String(Math.round(totalEnvVariables / tableCredentials.length))
+                : "0"
+            }
+          />
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+        <div className="relative z-20 border-b border-slate-100 p-3 sm:p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <CodeIcon />
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900">קבצי ENV לפי פרויקט</h2>
+                <p className="text-xs text-slate-400">
+                  מציג {filteredCredentials.length} מתוך {tableCredentials.length} פרויקטים
+                </p>
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row xl:max-w-2xl">
+              <div className="relative min-w-0 flex-1">
+                <SearchIcon />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="חיפוש לפי שם פרויקט או משתנה..."
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/70 pe-10 ps-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute end-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+                    aria-label="נקה חיפוש"
+                  >
+                    <ClearIcon />
+                  </button>
+                ) : null}
+              </div>
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 end-2 flex items-center rounded-md px-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="נקה חיפוש"
+                onClick={openAddModal}
+                className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
               >
-                ✕
+                <PlusIcon />
+                הוסף ENV
               </button>
-            ) : null}
+            </div>
           </div>
         </div>
 
-        {filteredCredentials.length === 0 ? (
-          <div className="px-5 py-16 text-center">
-            <p className="text-sm font-medium text-slate-600">
-              {searchQuery.trim()
-                ? "לא נמצאו תוצאות לחיפוש"
-                : "אין ENV שמורים עדיין"}
-            </p>
-            <p className="mt-1 text-sm text-slate-400">
-              {searchQuery.trim()
-                ? "נסה שם פרויקט או משתנה אחר"
-                : "לחץ על + הוסף ENV כדי להדביק קובץ .env של פרויקט"}
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {filteredCredentials.map((row) => {
-              const variableCount = countEnvVariables(row.notes);
-              const copied = copiedId === row.id;
+        <div className="overflow-x-auto p-2">
+          <div className="min-w-[820px]">
+            <div className="grid grid-cols-[minmax(300px,1fr)_150px_150px_190px_48px] items-center px-4 py-2.5 text-[11px] font-semibold text-slate-500">
+              <span>פרויקט</span>
+              <span>משתנים</span>
+              <span>סטטוס</span>
+              <span>העתקה</span>
+              <span />
+            </div>
 
-              return (
-                <li
-                  key={row.id}
-                  className="group px-5 py-3.5 transition hover:bg-slate-50/80"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
+            {filteredCredentials.length === 0 ? (
+              <div className="rounded-xl border border-slate-100 bg-white px-6 py-16 text-center">
+                <p className="text-sm font-medium text-slate-600">
+                  {searchQuery.trim() ? "לא נמצאו תוצאות לחיפוש" : "אין ENV שמורים עדיין"}
+                </p>
+                <p className="mt-1 text-sm text-slate-400">
+                  {searchQuery.trim()
+                    ? "נסה שם פרויקט או משתנה אחר"
+                    : "הוסף ENV כדי להדביק קובץ של פרויקט"}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredCredentials.map((row) => {
+                  const variableCount = countEnvVariables(row.notes);
+                  const copied = copiedId === row.id;
+
+                  return (
+                    <article
+                      key={row.id}
+                      className="grid min-h-[68px] grid-cols-[minmax(300px,1fr)_150px_150px_190px_48px] items-center rounded-xl border border-slate-100 bg-white shadow-[0_3px_12px_rgba(15,23,42,0.045)] transition hover:border-slate-200"
+                    >
+                      <div className="flex min-w-0 items-center gap-3 px-4 py-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 font-mono text-xs font-bold text-emerald-700">
+                          .env
+                        </span>
+                        <div className="min-w-0">
                         {row.client_id ? (
                           <Link
                             href={`/customers/${row.client_id}`}
-                            className="text-base font-semibold text-blue-700 transition hover:text-blue-900 hover:underline"
+                              className="block truncate text-sm font-bold text-slate-900 transition hover:text-emerald-700"
                           >
                             {row.client_name}
                           </Link>
                         ) : (
-                          <span className="text-base font-semibold text-slate-900">
+                            <span className="block truncate text-sm font-bold text-slate-900">
                             {row.client_name}
                           </span>
                         )}
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-100">
+                          <p className="mt-1 truncate text-xs text-slate-400">
+                            {row.client_id ? "מקושר לכרטיס לקוח" : "ללא קישור ללקוח"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="px-3 py-3">
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
                           {variableCount} משתנים
                         </span>
-                        {row.notes ? (
-                          <span className="text-xs text-slate-400">ENV שמור</span>
-                        ) : (
-                          <span className="text-xs text-slate-400">אין תוכן</span>
-                        )}
                       </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-2">
+                      <div className="px-3 py-3">
+                        <span
+                          className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-medium ${
+                            row.notes
+                              ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100"
+                              : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {row.notes ? "ENV שמור" : "אין תוכן"}
+                        </span>
+                      </div>
+                      <div className="px-3 py-3">
                       <button
                         type="button"
                         disabled={!row.notes || isBusy}
                         onClick={() => handleCopy(row)}
-                        className={`h-9 rounded-xl px-3 text-xs font-semibold transition disabled:opacity-50 ${
+                          className={`inline-flex h-9 min-w-28 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition disabled:opacity-50 ${
                           copied
                             ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-900 text-white hover:bg-slate-800"
+                              : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                         }`}
                       >
+                          <CopyIcon />
                         {copied ? "הועתק!" : "העתק ENV"}
                       </button>
+                      </div>
+                      <div className="flex justify-center px-1 py-3">
                       <TableRowActionsMenu
                         disabled={isBusy}
                         isDeleting={deletingId === row.id}
@@ -415,13 +461,14 @@ export function EnvCredentialsManager({
                         onEdit={() => openEditModal(row)}
                         onDelete={() => handleDelete(row)}
                       />
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       {modalOpen ? (
@@ -453,6 +500,87 @@ export function EnvCredentialsManager({
         ונגישים רק דרך השרת.
       </p>
     </div>
+  );
+}
+
+function HeaderMetric({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "success";
+}) {
+  return (
+    <div className="border-t border-slate-100 px-5 py-4 first:border-t-0 sm:border-s sm:border-t-0 sm:px-6 sm:first:border-s-0">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p
+        className={`mt-1 text-2xl font-bold tracking-tight tabular-nums ${
+          tone === "success" ? "text-emerald-600" : "text-slate-950"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ClearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="m7 7 10 10M17 7 7 17" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+    </svg>
+  );
+}
+
+function EnvIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="m7 9 2 2-2 2M12 14h5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CodeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
