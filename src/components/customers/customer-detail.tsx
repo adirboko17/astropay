@@ -49,6 +49,7 @@ import {
   type CredentialFormData,
 } from "@/lib/credentials/constants";
 import type { PayPlusRecurringDetailView } from "@/lib/payplus/types";
+import { countEnvVariables, isEnvTable } from "@/lib/credentials/env-table";
 import { getPlatformBadgeClass } from "@/lib/credentials/platform-ui";
 import { getTableName } from "@/lib/credentials/tables";
 import type {
@@ -124,6 +125,12 @@ export function CustomerDetail({
   const [selectedRecurringId, setSelectedRecurringId] = useState<string>(
     unlinkedRecurringClients[0]?.id ?? "",
   );
+  const [activeSection, setActiveSection] = useState<"credentials" | "billing" | "payplus">(
+    "credentials",
+  );
+  const [showAllCharges, setShowAllCharges] = useState(false);
+  const [showAllPayments, setShowAllPayments] = useState(false);
+  const [showPayPlusHistory, setShowPayPlusHistory] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -142,28 +149,13 @@ export function CustomerDetail({
       .reduce((sum, charge) => sum + charge.amount, 0);
   }, [linkedRecurringDetail]);
 
-  const balance = useMemo(() => {
-    const manualBalance = computeCustomerBalance(customer, payments, charges);
-    if (!linkedRecurringClient) return manualBalance;
-
-    const recurringMonthlyDue = Number(linkedRecurringClient.monthly_amount || 0);
-    const totalDue =
-      manualBalance.totalDue > 0 ? manualBalance.totalDue : recurringMonthlyDue;
-    const totalPaid = manualBalance.totalPaid + payPlusPaidThisMonth;
-
-    return {
-      ...manualBalance,
-      totalDue,
-      totalPaid,
-      remaining: Math.max(totalDue - totalPaid, 0),
-      currency:
-        manualBalance.totalDue > 0
-          ? manualBalance.currency
-          : linkedRecurringClient.currency || manualBalance.currency,
-    };
-  }, [customer, payments, charges, linkedRecurringClient, payPlusPaidThisMonth]);
+  const balance = useMemo(
+    () => computeCustomerBalance(customer, payments, charges),
+    [customer, payments, charges],
+  );
   const status = getCollectionStatus(balance);
-  const isProject = !isBillingCustomer(customer, payments, charges);
+  const isProject =
+    !linkedRecurringClient && !isBillingCustomer(customer, payments, charges);
 
   const sortedCharges = useMemo(
     () => [...charges].sort((a, b) => b.created_at.localeCompare(a.created_at)),
@@ -184,6 +176,8 @@ export function CustomerDetail({
     () => [...payments].sort((a, b) => b.paid_at.localeCompare(a.paid_at)),
     [payments],
   );
+  const visibleCharges = showAllCharges ? sortedCharges : sortedCharges.slice(0, 4);
+  const visiblePayments = showAllPayments ? sortedPayments : sortedPayments.slice(0, 5);
 
   function notify(success: string | null, failure: string | null) {
     setMessage(success);
@@ -553,7 +547,9 @@ export function CustomerDetail({
                 {customer.name.charAt(0).toUpperCase() || "?"}
               </span>
               <div>
-                <p className="text-xs font-semibold text-blue-600">כרטיס לקוח</p>
+                <p className="text-xs font-semibold text-blue-600">
+                  {isProject ? "כרטיס פרויקט" : "כרטיס לקוח"}
+                </p>
                 <h1 className="mt-1 text-xl font-semibold text-slate-900">{customer.name}</h1>
                 {customer.company ? (
                   <p className="mt-0.5 text-sm text-slate-500">{customer.company}</p>
@@ -585,7 +581,7 @@ export function CustomerDetail({
               }}
               className="rounded-xl border border-slate-200 bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-white"
             >
-              ערוך פרטי לקוח
+              {isProject ? "ערוך פרטי פרויקט" : "ערוך פרטי לקוח"}
             </button>
           </div>
           {customer.notes ? (
@@ -596,12 +592,95 @@ export function CustomerDetail({
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+      <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="grid divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-x-reverse sm:divide-y-0 lg:grid-cols-4">
+          <div className="px-5 py-4">
+            <p className="text-xs font-medium text-slate-500">פרטי התחברות</p>
+            <p className="mt-1 text-xl font-semibold text-slate-900">{credentials.length}</p>
+            <p className="mt-0.5 text-xs text-slate-400">רשומות מקושרות</p>
+          </div>
+          {!isProject ? (
+            <>
+              <div className="px-5 py-4">
+                <p className="text-xs font-medium text-slate-500">נותר לגבייה</p>
+                <p className={`mt-1 text-xl font-semibold ${balance.remaining > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                  {formatCurrency(balance.remaining, balance.currency)}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-400">{COLLECTION_STATUS_LABEL[status]}</p>
+              </div>
+              <div className="px-5 py-4">
+                <p className="text-xs font-medium text-slate-500">חיובים ותשלומים</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900">
+                  {charges.length} <span className="text-sm font-normal text-slate-400">/</span> {payments.length}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-400">חיובים / תשלומים</p>
+              </div>
+              <div className="px-5 py-4">
+                <p className="text-xs font-medium text-slate-500">PayPlus</p>
+                <p className={`mt-1 text-sm font-semibold ${linkedRecurringClient ? "text-indigo-700" : "text-slate-500"}`}>
+                  {linkedRecurringClient ? "הוראת קבע מקושרת" : "לא מקושר"}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {linkedRecurringClient
+                    ? `${formatCurrency(Number(linkedRecurringClient.monthly_amount), linkedRecurringClient.currency)} לחודש`
+                    : "ניתן לקשר הוראה קיימת"}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="px-5 py-4 sm:col-span-1 lg:col-span-3">
+              <p className="text-xs font-medium text-slate-500">סוג רשומה</p>
+              <p className="mt-1 text-sm font-semibold text-slate-800">פרויקט פנימי</p>
+              <p className="mt-1 text-xs text-slate-400">מידע פיננסי מוסתר בפרויקטים ללא גבייה</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {!isProject ? (
+        <nav
+          aria-label="אזורי כרטיס הלקוח"
+          className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-sm"
+        >
+          {(
+            [
+              ["credentials", "פרטי התחברות", credentials.length],
+              ["billing", "גבייה", charges.length + payments.length],
+              ["payplus", "PayPlus", linkedRecurringClient ? 1 : 0],
+            ] as const
+          ).map(([section, label, count]) => (
+            <button
+              key={section}
+              type="button"
+              onClick={() => setActiveSection(section)}
+              aria-current={activeSection === section ? "page" : undefined}
+              className={`flex min-w-fit flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                activeSection === section
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              {label}
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] ${
+                  activeSection === section ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          ))}
+        </nav>
+      ) : null}
+
+      {(isProject || activeSection === "credentials") && (
         <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
               <h2 className="text-base font-semibold text-slate-900">פרטי התחברות</h2>
-              <p className="mt-1 text-sm text-slate-500">{credentials.length} רשומות מקושרות ללקוח</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {credentials.length} רשומות מקושרות {isProject ? "לפרויקט" : "ללקוח"}
+              </p>
             </div>
             <button
               type="button"
@@ -613,7 +692,7 @@ export function CustomerDetail({
             </button>
           </div>
 
-          <div className="max-h-[520px] overflow-y-auto p-4">
+          <div className="p-4 sm:p-5">
             {sortedCredentials.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center">
                 <p className="text-sm font-medium text-slate-600">אין פרטי התחברות מקושרים</p>
@@ -622,7 +701,7 @@ export function CustomerDetail({
                 </p>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid gap-3 xl:grid-cols-2">
                 {sortedCredentials.map((credential) => {
                   const tableName = getTableName(credential.table_id, tables) ?? credential.platform;
                   return (
@@ -642,29 +721,41 @@ export function CustomerDetail({
             )}
           </div>
         </section>
+      )}
 
-        <div className="space-y-5">
-          <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+      {!isProject && activeSection === "billing" && (
+        <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="text-base font-semibold text-slate-900">גבייה</h2>
-              <p className="mt-1 text-sm text-slate-500">מעקב אחר סכום כולל לגבייה ותשלומים שהתקבלו</p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">גבייה</h2>
+                  <p className="mt-1 text-sm text-slate-500">חיובים, יתרות והיסטוריית תשלומים במקום אחד</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openAddPayment}
+                  className="h-9 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  + רישום תשלום
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-3 px-5 py-4">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-xl bg-slate-50 px-2 py-3">
+            <div className="space-y-5 p-5">
+              <div className="grid gap-3 text-center sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-4">
                   <p className="text-xs text-slate-500">סה״כ לגבייה</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">
                     {formatCurrency(balance.totalDue, balance.currency)}
                   </p>
                 </div>
-                <div className="rounded-xl bg-emerald-50 px-2 py-3">
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-4">
                   <p className="text-xs text-emerald-700">שולם</p>
                   <p className="mt-1 text-sm font-semibold text-emerald-800">
                     {formatCurrency(balance.totalPaid, balance.currency)}
                   </p>
                 </div>
-                <div className="rounded-xl bg-red-50 px-2 py-3">
+                <div className="rounded-2xl border border-red-100 bg-red-50 px-3 py-4">
                   <p className="text-xs text-red-700">נותר לגבייה</p>
                   <p className="mt-1 text-sm font-semibold text-red-700">
                     {formatCurrency(balance.remaining, balance.currency)}
@@ -673,26 +764,12 @@ export function CustomerDetail({
               </div>
 
               {linkedRecurringClient ? (
-                <div className="rounded-xl border border-violet-100 bg-violet-50/70 px-3 py-2.5 text-xs text-violet-800">
-                  החישוב כולל הוראת קבע חודשית של{" "}
-                  <span className="font-semibold">
-                    {formatCurrency(
-                      Number(linkedRecurringClient.monthly_amount),
-                      linkedRecurringClient.currency,
-                    )}
-                  </span>
-                  {payPlusPaidThisMonth > 0 ? (
-                    <>
-                      {" "}
-                      ו־
-                      <span className="font-semibold">
-                        {formatCurrency(payPlusPaidThisMonth, linkedRecurringClient.currency)}
-                      </span>{" "}
-                      שחויבו בהצלחה ב-PayPlus החודש.
-                    </>
-                  ) : (
-                    ". עדיין לא נמצא חיוב מוצלח החודש."
-                  )}
+                <div className="flex items-start gap-2 rounded-xl border border-indigo-100 bg-indigo-50/70 px-3 py-2.5 text-xs leading-5 text-indigo-800">
+                  <span className="mt-0.5 shrink-0" aria-hidden="true">ⓘ</span>
+                  <p>
+                    הוראת הקבע ב-PayPlus מנוהלת בנפרד ואינה כלולה בסכומי הפרויקט,
+                    בתשלומים או ביתרה לגבייה.
+                  </p>
                 </div>
               ) : null}
 
@@ -708,7 +785,7 @@ export function CustomerDetail({
                 </p>
               )}
 
-              <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-slate-700">חיובים / שירותים</p>
                   <button
@@ -726,7 +803,7 @@ export function CustomerDetail({
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    {sortedCharges.map((charge) => {
+                    {visibleCharges.map((charge) => {
                       const chargeBalance = computeChargeBalance(charge, payments);
                       return (
                         <div
@@ -769,23 +846,30 @@ export function CustomerDetail({
                     })}
                   </div>
                 )}
+                {sortedCharges.length > 4 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllCharges((current) => !current)}
+                    className="w-full rounded-lg py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-50"
+                  >
+                    {showAllCharges ? "הצג פחות" : `הצג את כל ${sortedCharges.length} החיובים`}
+                  </button>
+                ) : null}
               </div>
 
-              <button
-                type="button"
-                onClick={openAddPayment}
-                className="h-9 w-full rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-              >
-                + רישום תשלום
-              </button>
-
-              <div className="space-y-2 pt-1">
+              <div className="space-y-3 rounded-2xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">תשלומים אחרונים</p>
+                    <p className="mt-0.5 text-xs text-slate-400">{payments.length} תשלומים רשומים</p>
+                  </div>
+                </div>
                 {sortedPayments.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-sm text-slate-400">
                     אין תשלומים רשומים עדיין
                   </p>
                 ) : (
-                  sortedPayments.map((payment) => {
+                  visiblePayments.map((payment) => {
                     const chargeTitle = charges.find((charge) => charge.id === payment.charge_id)?.title;
                     return (
                       <div
@@ -822,41 +906,90 @@ export function CustomerDetail({
                     );
                   })
                 )}
+                {sortedPayments.length > 5 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllPayments((current) => !current)}
+                    className="w-full rounded-lg py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-50"
+                  >
+                    {showAllPayments ? "הצג פחות" : `הצג את כל ${sortedPayments.length} התשלומים`}
+                  </button>
+                ) : null}
               </div>
             </div>
-          </section>
+        </section>
+      )}
 
+      {!isProject && activeSection === "payplus" && (
           <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-5 py-4">
               <h2 className="text-base font-semibold text-slate-900">הוראת קבע PayPlus</h2>
               <p className="mt-1 text-sm text-slate-500">חיבור בין הלקוח לחיובים החודשיים ב-PayPlus</p>
             </div>
 
-            <div className="px-5 py-4">
+            <div className="p-5">
               {linkedRecurringClient ? (
-                <div className="space-y-3">
-                  <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-3">
-                    <p className="text-sm font-medium text-indigo-900">
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-indigo-100 bg-gradient-to-l from-indigo-50 to-white p-5">
+                    <p className="text-xs font-semibold text-indigo-600">הוראת קבע פעילה</p>
+                    <p className="mt-2 text-2xl font-semibold text-indigo-950">
                       {formatCurrency(
                         Number(linkedRecurringClient.monthly_amount),
                         linkedRecurringClient.currency,
                       )}{" "}
                       / חודש
                     </p>
-                    <p className="mt-1 text-xs text-indigo-700">
+                    <p className="mt-2 text-sm text-indigo-700">
                       סטטוס: {linkedRecurringClient.recurring_status ?? "—"} · חיוב הבא:{" "}
                       {formatDate(linkedRecurringClient.next_billing_date)}
                     </p>
-                    <p className="mt-2 border-t border-indigo-100 pt-2 text-xs font-medium text-indigo-800">
+                    <p className="mt-4 border-t border-indigo-100 pt-3 text-sm font-medium text-indigo-800">
                       חויב בהצלחה החודש:{" "}
                       {formatCurrency(payPlusPaidThisMonth, linkedRecurringClient.currency)}
                     </p>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setShowPayPlusHistory((current) => !current)}
+                      aria-expanded={showPayPlusHistory}
+                      className="flex w-full items-center justify-between gap-3 bg-white px-4 py-3.5 text-right transition hover:bg-slate-50"
+                    >
+                      <span>
+                        <span className="block text-sm font-semibold text-slate-900">
+                          היסטוריית תשלומי PayPlus
+                        </span>
+                        <span className="mt-0.5 block text-xs text-slate-500">
+                          {linkedRecurringDetail
+                            ? `${linkedRecurringDetail.charges.length} תשלומים וחיובים`
+                            : "היסטוריית החיובים אינה זמינה כרגע"}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2 text-xs font-semibold text-indigo-700">
+                        {showPayPlusHistory ? "הסתר היסטוריה" : "הצג היסטוריה"}
+                        <span
+                          className={`text-base transition ${showPayPlusHistory ? "rotate-180" : ""}`}
+                          aria-hidden="true"
+                        >
+                          ⌄
+                        </span>
+                      </span>
+                    </button>
+                    {showPayPlusHistory ? (
+                      linkedRecurringDetail ? (
+                        <PayPlusPaymentHistory detail={linkedRecurringDetail} />
+                      ) : (
+                        <p className="border-t border-slate-100 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+                          לא ניתן לטעון את היסטוריית התשלומים מ־PayPlus כרגע
+                        </p>
+                      )
+                    ) : null}
                   </div>
                   <button
                     type="button"
                     disabled={isSaving}
                     onClick={handleUnlinkRecurring}
-                    className="h-9 w-full rounded-xl border border-slate-200 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                    className="h-10 w-full rounded-xl border border-slate-200 text-sm font-medium text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                   >
                     בטל קישור
                   </button>
@@ -891,8 +1024,7 @@ export function CustomerDetail({
               )}
             </div>
           </section>
-        </div>
-      </div>
+      )}
 
       {editingProfile ? (
         <CustomerFormModal
@@ -958,6 +1090,138 @@ export function CustomerDetail({
   );
 }
 
+function PayPlusPaymentHistory({
+  detail,
+}: {
+  detail: PayPlusRecurringDetailView;
+}) {
+  const charges = [...detail.charges].sort((a, b) => {
+    const dateA = a.executionDate ?? a.chargeDate ?? "";
+    const dateB = b.executionDate ?? b.chargeDate ?? "";
+    return dateB.localeCompare(dateA);
+  });
+
+  return (
+    <div className="border-t border-slate-100 bg-slate-50/70 p-4">
+      <div className="mb-4 grid gap-2 sm:grid-cols-3">
+        <PayPlusHistoryMetric
+          label="נגבה בסך הכול"
+          value={formatCurrency(detail.totalCollected, detail.client.currency)}
+          tone="indigo"
+        />
+        <PayPlusHistoryMetric
+          label="תשלומים שהצליחו"
+          value={String(detail.successfulChargeCount)}
+          tone="success"
+        />
+        <PayPlusHistoryMetric
+          label="תשלומים שנכשלו"
+          value={String(detail.failedChargeCount)}
+          tone={detail.failedChargeCount > 0 ? "danger" : "neutral"}
+        />
+      </div>
+
+      {detail.chargesError ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+          {detail.chargesError}
+        </p>
+      ) : charges.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center">
+          <p className="text-sm font-medium text-slate-600">אין עדיין תשלומים להצגה</p>
+          <p className="mt-1 text-xs text-slate-400">
+            חיובים שיבוצעו דרך הוראת הקבע יופיעו כאן
+          </p>
+        </div>
+      ) : (
+        <div className="max-h-[520px] space-y-2 overflow-y-auto pe-1">
+          {charges.map((charge) => {
+            const chargeDate = charge.executionDate ?? charge.chargeDate;
+            const statusClass = charge.isSuccess
+              ? "bg-emerald-100 text-emerald-800"
+              : charge.isFailed
+                ? "bg-red-100 text-red-800"
+                : charge.isPending
+                  ? "bg-amber-100 text-amber-900"
+                  : "bg-slate-100 text-slate-700";
+
+            return (
+              <article
+                key={charge.uid}
+                className="grid gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-[110px_minmax(0,1fr)_auto] sm:items-center"
+              >
+                <div>
+                  <p className="text-xs text-slate-400">תאריך חיוב</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-800">
+                    {formatDate(chargeDate)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-800">
+                    {charge.productSummary || "חיוב הוראת קבע"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {charge.cardLast4 ? `כרטיס המסתיים ב־${charge.cardLast4}` : "כרטיס לא זמין"}
+                    {charge.transactionId ? ` · עסקה ${charge.transactionId}` : ""}
+                  </p>
+                  {charge.failureReason ? (
+                    <p className="mt-1 text-xs font-medium text-red-600">
+                      {charge.failureReason}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
+                  <p className="text-sm font-bold text-slate-950">
+                    {formatCurrency(charge.amount, charge.currency)}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass}`}>
+                      {charge.statusLabel}
+                    </span>
+                    {charge.invoiceUrl ? (
+                      <a
+                        href={charge.invoiceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg border border-indigo-200 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-50"
+                      >
+                        חשבונית
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PayPlusHistoryMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "indigo" | "success" | "danger" | "neutral";
+}) {
+  const styles = {
+    indigo: "border-indigo-100 bg-indigo-50 text-indigo-900",
+    success: "border-emerald-100 bg-emerald-50 text-emerald-900",
+    danger: "border-red-100 bg-red-50 text-red-900",
+    neutral: "border-slate-200 bg-white text-slate-800",
+  }[tone];
+
+  return (
+    <div className={`rounded-xl border px-3 py-2.5 ${styles}`}>
+      <p className="text-[11px] opacity-70">{label}</p>
+      <p className="mt-1 text-sm font-bold">{value}</p>
+    </div>
+  );
+}
+
 function CredentialCard({
   credential,
   tableName,
@@ -972,77 +1236,140 @@ function CredentialCard({
   onGoToTable: () => void;
 }) {
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const website = credential.website_url?.trim() ?? "";
+  const dashboardUrl = credential.dashboard_url?.trim() ?? "";
   const isLink = website.startsWith("http://") || website.startsWith("https://");
+  const isDashboardLink =
+    dashboardUrl.startsWith("http://") || dashboardUrl.startsWith("https://");
+  const isEnv = isEnvTable(tableName);
+  const hasOnlyNotes =
+    Boolean(credential.notes?.trim()) &&
+    !credential.login_email &&
+    !credential.login_username &&
+    !credential.password &&
+    !website &&
+    !dashboardUrl &&
+    !credential.service_label;
+  const identity = isEnv
+    ? `${countEnvVariables(credential.notes)} משתני סביבה`
+    : credential.service_label ||
+      credential.login_email ||
+      credential.login_username ||
+      website ||
+      dashboardUrl ||
+      (credential.password ? "סיסמה שמורה" : "") ||
+      (hasOnlyNotes ? "הערות בלבד" : "ללא פרטים");
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-        <span
-          className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold ${getPlatformBadgeClass(tableName)}`}
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-slate-300 hover:shadow-sm">
+      <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${isExpanded ? "border-b border-slate-100" : ""}`}>
+        <button
+          type="button"
+          onClick={() => setIsExpanded((current) => !current)}
+          aria-expanded={isExpanded}
+          className="flex min-w-0 flex-1 items-center gap-3 text-right"
         >
-          {tableName}
-        </span>
-        <div className="flex gap-2">
+          <span
+            className={`inline-flex shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold ${getPlatformBadgeClass(tableName)}`}
+          >
+            {tableName}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium text-slate-800">{identity}</span>
+            <span className="mt-0.5 block text-xs text-slate-400">
+              {isExpanded ? "לחץ לסגירת הפרטים" : "לחץ לצפייה בפרטים"}
+            </span>
+          </span>
+          <span className={`ms-auto text-slate-400 transition ${isExpanded ? "rotate-180" : ""}`}>⌄</span>
+        </button>
+        <div className="flex shrink-0 gap-1">
           <button
             type="button"
             onClick={onGoToTable}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
           >
             לטבלה
           </button>
           <button
             type="button"
             onClick={onEdit}
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
+            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
           >
             ערוך
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50"
           >
             מחק
           </button>
         </div>
       </div>
 
-      <dl className="grid gap-4 px-4 py-4 sm:grid-cols-2">
-        <div>
-          <dt className="text-xs font-medium text-slate-500">אימייל</dt>
-          <dd className="mt-1.5 text-sm text-slate-800">{credential.login_email || "—"}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium text-slate-500">משתמש</dt>
-          <dd className="mt-1.5 text-sm text-slate-800">{credential.login_username || "—"}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium text-slate-500">אתר</dt>
-          <dd className="mt-1.5 text-sm text-slate-800">
+      {isExpanded ? (
+        isEnv ? (
+          credential.notes?.trim() ? (
+            <EnvContent content={credential.notes} />
+          ) : (
+            <p className="bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+              אין תוכן ENV ברשומה
+            </p>
+          )
+        ) : (
+          <dl className="grid gap-4 bg-slate-50/40 px-4 py-4 sm:grid-cols-2">
+            {credential.service_label ? (
+              <CredentialDetail label="שירות" value={credential.service_label} />
+            ) : null}
+            {credential.login_email ? (
+              <CredentialDetail label="אימייל" value={credential.login_email} ltr />
+            ) : null}
+            {credential.login_username ? (
+              <CredentialDetail label="משתמש" value={credential.login_username} ltr />
+            ) : null}
             {website ? (
-              isLink ? (
-                <a
-                  href={website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  {website}
-                </a>
-              ) : (
-                website
-              )
-            ) : (
-              "—"
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium text-slate-500">סיסמה</dt>
-          <dd className="mt-1.5 flex items-center gap-2 text-sm text-slate-800">
+              <div>
+                <dt className="text-xs font-medium text-slate-500">אתר</dt>
+                <dd className="mt-1.5 break-all text-sm text-slate-800" dir="ltr">
+                  {isLink ? (
+                    <a
+                      href={website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {website}
+                    </a>
+                  ) : (
+                    website
+                  )}
+                </dd>
+              </div>
+            ) : null}
+            {dashboardUrl ? (
+              <div>
+                <dt className="text-xs font-medium text-slate-500">לוח בקרה</dt>
+                <dd className="mt-1.5 break-all text-sm text-slate-800" dir="ltr">
+                  {isDashboardLink ? (
+                    <a
+                      href={dashboardUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {dashboardUrl}
+                    </a>
+                  ) : (
+                    dashboardUrl
+                  )}
+                </dd>
+              </div>
+            ) : null}
             {credential.password ? (
-              <>
+              <div>
+                <dt className="text-xs font-medium text-slate-500">סיסמה</dt>
+                <dd className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-800">
                 <span className="rounded-lg bg-slate-50 px-2.5 py-1 font-mono text-sm">
                   {passwordVisible ? credential.password : "••••••"}
                 </span>
@@ -1053,19 +1380,131 @@ function CredentialCard({
                 >
                   {passwordVisible ? "הסתר" : "הצג"}
                 </button>
-              </>
-            ) : (
-              "—"
-            )}
-          </dd>
-        </div>
-        {credential.notes ? (
-          <div className="sm:col-span-2">
-            <dt className="text-xs font-medium text-slate-500">הערות</dt>
-            <dd className="mt-1.5 text-sm text-slate-800">{credential.notes}</dd>
-          </div>
-        ) : null}
-      </dl>
+                <CopyTextButton value={credential.password} label="העתק" />
+                </dd>
+              </div>
+            ) : null}
+            {credential.notes?.trim() ? (
+              <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-4 sm:col-span-2">
+                <dt className="text-xs font-semibold text-amber-700">הערות</dt>
+                <dd className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">
+                  {credential.notes}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        )
+      ) : null}
     </article>
+  );
+}
+
+function CredentialDetail({
+  label,
+  value,
+  ltr = false,
+}: {
+  label: string;
+  value: string;
+  ltr?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-medium text-slate-500">{label}</dt>
+      <dd
+        className="mt-1.5 break-words text-sm font-medium text-slate-800"
+        dir={ltr ? "ltr" : undefined}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function CopyTextButton({
+  value,
+  label,
+  dark = false,
+}: {
+  value: string;
+  label: string;
+  dark?: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className={`rounded-md px-2 py-1 text-[11px] font-medium transition ${
+        copied
+          ? "bg-emerald-100 text-emerald-700"
+          : dark
+            ? "bg-white/10 text-slate-200 hover:bg-white/15 hover:text-white"
+            : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+      }`}
+    >
+      {copied ? "הועתק!" : label}
+    </button>
+  );
+}
+
+function EnvContent({ content }: { content: string }) {
+  const variableCount = countEnvVariables(content);
+
+  return (
+    <div className="bg-slate-950">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="rounded-md bg-emerald-400/10 px-2 py-1 font-mono text-xs font-bold text-emerald-300">
+            .env
+          </span>
+          <span className="text-xs text-slate-400">{variableCount} משתנים</span>
+        </div>
+        <CopyTextButton value={content} label="העתק ENV" dark />
+      </div>
+      <pre
+        dir="ltr"
+        className="max-h-[420px] overflow-auto p-4 text-left font-mono text-xs leading-6 text-slate-200 sm:text-sm"
+      >
+        <code>
+          {content.split("\n").map((line, index) => (
+            <EnvLine key={`${index}-${line}`} line={line} />
+          ))}
+        </code>
+      </pre>
+    </div>
+  );
+}
+
+function EnvLine({ line }: { line: string }) {
+  const trimmed = line.trim();
+
+  if (!trimmed) return <span className="block min-h-6">{" "}</span>;
+  if (trimmed.startsWith("#")) {
+    return <span className="block text-slate-500">{line}</span>;
+  }
+
+  const separatorIndex = line.indexOf("=");
+  if (separatorIndex === -1) {
+    return <span className="block text-slate-300">{line}</span>;
+  }
+
+  return (
+    <span className="block min-w-max">
+      <span className="text-sky-300">{line.slice(0, separatorIndex)}</span>
+      <span className="text-slate-500">=</span>
+      <span className="text-amber-200">{line.slice(separatorIndex + 1)}</span>
+    </span>
   );
 }
